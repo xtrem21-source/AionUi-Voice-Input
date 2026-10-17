@@ -418,6 +418,24 @@ Ce n'est **pas une régression** du patch :
 Le libellé *Envoi manuel* suggère que la boîte de brouillons n'est pas conçue comme une file
 100 % automatique : AionUi en envoie un, puis laisse les suivants à l'utilisateur.
 
+### Preuve dans le journal (2026-10-18)
+
+`localStorage['ocVoice.log']` contient, pour les 2ᵉ et 3ᵉ messages de l'essai :
+
+```
+23:43:42 [info] submitChat: agent occupe -> message mis en file d attente (brouillon)
+23:44:04 [info] submitChat: agent occupe -> message mis en file d attente (brouillon)
+```
+
+Aucune ligne `bouton envoi indisponible` ni `Envoi auto impossible` à ces heures-là (la seule
+occurrence est à 22:53:26, avant le correctif). Donc `findDraftButton()` **n'a pas échoué** :
+les deux messages étaient bien dans la file. La défaillance est la **vidange côté AionUi**, pas
+la mise en file.
+
+`sessionStorage` ne contient que `aion:last-non-settings-path` ; aucune clé de file. L'analyse
+selon laquelle la file serait stockée en `sessionStorage` n'est donc **pas vérifiée** dans ce
+build.
+
 ### Ce qu'il faut retenir
 
 - Ne pas automatiser la vidange depuis le script injecté : on ne connaît pas l'API interne de
