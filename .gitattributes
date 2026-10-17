@@ -1,0 +1,12 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Windows scripts keep CRLF, shell scripts must stay LF
+*.ps1 text eol=crlf
+*.sh  text eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.asar binary
