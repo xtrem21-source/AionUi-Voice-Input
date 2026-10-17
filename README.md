@@ -74,9 +74,9 @@ The patch rewrites `resources/app.asar`, which is locked while the app runs.
 The script backs up the original as `app.asar.bak` and refuses to run if the app is open or
 already patched.
 
-> 🖱️ **Windows, one click:** double-click **`APPLIQUER-MIC-AIONUI.cmd`**, then close AionUi.
-> The helper waits for the app to exit, backs up, patches, and relaunches it — no console
-> gymnastics. Useful when the app must be closed but you are working *inside* it.
+> 🖱️ **Windows, one click:** close AionUi completely, then double-click
+> **`INSTALLER-MIC-AIONUI.bat`**. It backs up the archive, patches it, and tells you to relaunch.
+> No command line needed.
 
 ### 3. Relaunch and configure
 

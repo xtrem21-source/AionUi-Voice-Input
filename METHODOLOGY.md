@@ -168,6 +168,13 @@ const SEND_SELECTOR =
 
 > Locate it in the app's DevTools: right-click the arrow → *Inspect*.
 
+> **Layout note — the window does NOT widen.** Adding a button to the composer row takes
+> roughly **32 px from the textarea**; it never enlarges the window. If the window is narrow,
+> place the mic **above** the send button instead: give the wrapper `position:relative;
+> width:0; height:0` and the button `position:absolute; right:0; bottom:calc(100% + 6px)`.
+> Zero layout impact. The AionUi preset switches to this automatically below **220 px** of
+> composer width.
+
 ### ② The composer
 
 The script already tries, in order:

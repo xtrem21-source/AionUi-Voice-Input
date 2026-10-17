@@ -394,7 +394,30 @@
       st.anchored = true;
       hideAnchor(false);
       positionOverlay(st.ui.root);
-      logWarn('ancrage REUSSI (juste a droite de la fleche d\'envoi)');
+
+      // --- placement adaptatif ---------------------------------------------
+      // AionUi n'elargit PAS la fenetre quand on ajoute un bouton dans la barre :
+      // il prend ~32 px au champ de saisie. Si le champ est etroit, on superpose
+      // le micro AU-DESSUS de la fleche (aucun impact sur la mise en page).
+      var areaW = findInput();
+      var avail = areaW ? areaW.getBoundingClientRect().width : 9999;
+      if (avail < 220) {
+        anchor.style.position = 'relative';
+        anchor.style.width = '0';
+        anchor.style.height = '0';
+        st.ui.btn.style.position = 'absolute';
+        st.ui.btn.style.right = '0';
+        st.ui.btn.style.bottom = 'calc(100% + 6px)';
+        logWarn('ancrage: champ etroit (' + Math.round(avail) + 'px) -> micro AU-DESSUS de la fleche');
+      } else {
+        anchor.style.position = '';
+        anchor.style.width = '';
+        anchor.style.height = '';
+        st.ui.btn.style.position = '';
+        st.ui.btn.style.right = '';
+        st.ui.btn.style.bottom = '';
+        logWarn('ancrage REUSSI (juste a droite de la fleche d\'envoi)');
+      }
       return;
     }
     // Pas de barre de saisie (ecran d'accueil, autre vue...) : on MASQUE le micro

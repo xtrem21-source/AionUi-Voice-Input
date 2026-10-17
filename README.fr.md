@@ -74,9 +74,9 @@ Le correctif réécrit `resources/app.asar`, verrouillé tant que l'application 
 Le script sauvegarde l'original en `app.asar.bak` et refuse de s'exécuter si l'application est
 ouverte ou déjà patchée.
 
-> 🖱️ **Windows, en un clic :** double-clique **`APPLIQUER-MIC-AIONUI.cmd`**, puis ferme AionUi.
-> Le script attend la fermeture, sauvegarde, applique le correctif et relance l'application.
-> Pratique quand l'app doit être fermée alors que tu travailles *dedans*.
+> 🖱️ **Windows, en un clic :** ferme complètement AionUi, puis double-clique
+> **`INSTALLER-MIC-AIONUI.bat`**. Il sauvegarde l'archive, applique le correctif et te demande
+> de relancer. Aucune ligne de commande.
 
 ### 3. Relancer et configurer
 
