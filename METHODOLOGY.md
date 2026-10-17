@@ -129,6 +129,46 @@ Check two things in it:
 
 ## 4. Step 2 — Install the file
 
+### 0. The app must not be running — and that is *your* job
+
+On Windows `app.asar` is **locked** while the app is alive: every write fails with
+`Access denied`. And the usual trap is a **tray / menu-bar icon** — the user closes the
+window, believes the app is gone, and the process is still there.
+
+So do not trust the user. **Check, and close it yourself.**
+
+```powershell
+# Windows — force close, then wait for the lock to be released
+$procs = @(Get-Process -Name 'AionUi' -ErrorAction SilentlyContinue)   # use the real exe name
+if ($procs.Count -gt 0) {
+    Stop-Process -Name 'AionUi' -Force -ErrorAction SilentlyContinue
+    $deadline = (Get-Date).AddSeconds(20)
+    while (@(Get-Process -Name 'AionUi' -ErrorAction SilentlyContinue).Count -gt 0 -and
+           (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 400 }
+}
+```
+
+```bash
+# macOS — ask nicely first, then insist
+osascript -e 'quit app "AppName"' 2>/dev/null; sleep 2
+killall "AppName" 2>/dev/null; sleep 1
+```
+
+Rules for this step:
+
+1. **Warn first** — a 3-second countdown, cancellable, before any `kill`. Never silently
+   destroy work the user is in the middle of.
+2. **Wait for the exit**, with a timeout (~20 s). A `Stop-Process` that returns is not a
+   process that is gone; poll until it is.
+3. **Fail loudly** if it survives — never go on and write to a locked file.
+4. **Log it** (see §2): the exact PIDs you closed belong in the report.
+5. Killing is **only** legitimate for installing the patch. Never kill a process to "fix" an
+   unrelated problem.
+
+> `INSTALLER-MIC-AIONUI.bat` does exactly this: it force-closes AionUi (3 s countdown,
+> `Ctrl+C` to cancel), waits up to 20 s for the file lock, and aborts cleanly if the app
+> refuses to die. `-NoKill` restores the old "stop and tell the user" behaviour.
+
 ### A. Packed app (`app.asar`) — the common case
 
 ```powershell
@@ -273,6 +313,7 @@ needed.
 | `403` / `400` from Gemini | Bad/expired key, wrong model name | New key, valid model |
 | `404 model not found` | Model retired | Update the model list |
 | App won't start after patch | Bad repack | Restore `app.asar.bak` immediately |
+| `Access denied` / `EBUSY` / `EPERM` when writing | App still running (tray icon!) | Check the process, force-close, retry — §4.0 |
 | Works until an app update | Update replaced `app.asar` | Re-apply the method |
 
 ---

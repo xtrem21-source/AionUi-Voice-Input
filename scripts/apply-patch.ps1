@@ -13,6 +13,10 @@
       .\apply-patch.ps1 -Preset AionUi -ScriptPath ..\src\voice-input.aionui.js
       .\apply-patch.ps1 -Preset AionUi -Force        (re-apply over an existing patch)
       .\apply-patch.ps1 -Preset AionUi -Rollback     (restore the backup)
+      .\apply-patch.ps1 -Preset AionUi -NoKill       (never close the app automatically)
+
+  The app is force-closed if it is still running (3 s countdown, Ctrl+C to
+  cancel) because Windows keeps app.asar locked while the process is alive.
 
   Every run writes a timestamped log to <repo>\logs\ by default.
 #>
@@ -31,7 +35,8 @@ param(
     [string]$LogFile,
 
     [switch]$Rollback,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$NoKill
 )
 
 $ErrorActionPreference = 'Stop'
@@ -114,11 +119,59 @@ try {
         throw ('Source script not found: ' + $ScriptPath)
     }
 
-    # --- app must be closed -------------------------------------------------
-    $running = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-    if ($running) {
+    # --- close the app (force) ----------------------------------------------
+    # Windows keeps app.asar locked while the app runs, so the script closes it.
+    $running = @(Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)
+    if ($running.Count -gt 0) {
         $pids = ($running | ForEach-Object { $_.Id }) -join ','
-        throw ("'" + $ProcessName + "' is still running (PID " + $pids + "). Close it completely, then re-run.")
+        Write-Log ("'" + $ProcessName + "' is running (PID " + $pids + ").") 'Yellow'
+
+        if ($NoKill) {
+            throw ("'" + $ProcessName + "' is still running (PID " + $pids + "). Close it completely, then re-run.")
+        }
+
+        Write-Log 'Force-closing it in 3 seconds - press Ctrl+C to cancel...' 'Yellow'
+        for ($i = 3; $i -ge 1; $i--) {
+            Write-Host ('   ' + $i) -ForegroundColor Yellow
+            Start-Sleep -Seconds 1
+        }
+
+        try { Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue } catch { }
+        Start-Sleep -Milliseconds 400
+        if (@(Get-Process -Name $ProcessName -ErrorAction SilentlyContinue).Count -gt 0) {
+            try {
+                & taskkill /F /T /IM ($ProcessName + '.exe') *>&1 |
+                    ForEach-Object { Write-Log ('  ' + $_) 'DarkGray' }
+            }
+            catch { }
+        }
+
+        # wait until the file lock is really released (up to 20 s)
+        $deadline = (Get-Date).AddSeconds(20)
+        $left = @(Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)
+        while ($left.Count -gt 0 -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds 400
+            $left = @(Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)
+        }
+
+        if ($left.Count -gt 0) {
+            $lp = ($left | ForEach-Object { $_.Id }) -join ','
+            throw ("Could not close '" + $ProcessName + "' (PID " + $lp + " still alive after 20 s). Close it from Task Manager, then re-run.")
+        }
+
+        Write-Log 'App closed.' 'Green'
+
+        # a stray backend process would make the next launch fail: report it
+        $orphan = @(Get-Process -Name 'aioncore' -ErrorAction SilentlyContinue)
+        if ($orphan.Count -gt 0) {
+            $op = ($orphan | ForEach-Object { $_.Id }) -join ','
+            Write-Log ('Note      : backend aioncore still alive (PID ' + $op + '), left untouched on purpose.') 'DarkGray'
+        }
+
+        Start-Sleep -Milliseconds 700
+    }
+    else {
+        Write-Log 'App already closed - good.' 'Green'
     }
 
     # --- rollback -----------------------------------------------------------

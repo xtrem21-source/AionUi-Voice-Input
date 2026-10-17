@@ -51,9 +51,14 @@ No native module. No build step. No `npm install`. **One 45 KB file.**
 
 ## 📦 Install
 
-### 1. Close the target app
+### 1. The app gets closed for you
 
-The patch rewrites `resources/app.asar`, which is locked while the app runs.
+`resources/app.asar` is locked while the app runs — and a tray / menu-bar app is easy to
+forget. The Windows script therefore **force-closes the target app itself**, waits for the
+file lock to be released, and only then touches the archive.
+
+A 3-second countdown is shown first (`Ctrl+C` cancels). Add `-NoKill` if you prefer to close
+the app manually.
 
 ### 2. Apply the patch
 
@@ -71,11 +76,12 @@ The patch rewrites `resources/app.asar`, which is locked while the app runs.
 ./scripts/apply-patch.sh "/Applications/MyApp.app/Contents/Resources/app.asar" "dist/index.html" "dist/voice-input.js"
 ```
 
-The script backs up the original as `app.asar.bak` and refuses to run if the app is open or
-already patched.
+The script backs up the original as `app.asar.bak`, closes the app if needed (contrary to
+macOS, Windows will not let you replace a file held open), and refuses to run if the archive is
+already patched — use `-Force` to reinstall over an existing patch.
 
-> 🖱️ **Windows, one click:** close AionUi completely, then double-click
-> **`INSTALLER-MIC-AIONUI.bat`**. It backs up the archive, patches it, and tells you to relaunch.
+> 🖱️ **Windows, one click:** double-click **`INSTALLER-MIC-AIONUI.bat`**. It closes AionUi if
+> it is still running, backs up the archive, patches it, and tells you to relaunch.
 > No command line needed.
 
 ### 3. Relaunch and configure

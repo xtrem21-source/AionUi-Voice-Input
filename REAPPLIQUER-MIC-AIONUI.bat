@@ -14,7 +14,8 @@ echo.
 echo    Le script restaure d'abord la sauvegarde propre,
 echo    puis reapplique la nouvelle version.
 echo.
-echo    PREREQUIS : AionUi COMPLETEMENT ferme.
+echo    Pas besoin de fermer AionUi : s'il tourne, il sera ferme
+echo    de force dans 3 secondes (Ctrl+C pour annuler).
 echo.
 echo    Un journal (.log) est ecrit dans le dossier logs.
 echo  ------------------------------------------------------------

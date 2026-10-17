@@ -3,6 +3,23 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [2.1.1] — 2026-10-17
+
+### Added
+- **The patch script now closes the target app itself.** A tray / menu-bar icon is easy to
+  forget, and Windows keeps `app.asar` locked as long as the process lives. The script shows a
+  3-second countdown (`Ctrl+C` cancels), force-closes the app, polls up to 20 s until the file
+  lock is really released, and aborts cleanly if the process survives.
+- `-NoKill` switch: restores the previous "stop and tell the user" behaviour.
+- `METHODOLOGY.md` §4.0 — *"the app must not be running, and that is your job"*: the
+  force-close snippet for Windows and macOS, plus the five rules (warn, wait, fail loudly,
+  log the PIDs, never kill for unrelated reasons).
+- Failure table entry for `Access denied` / `EBUSY` — almost always a forgotten tray icon.
+
+### Changed
+- Logs now record the PIDs of the processes closed, and warn when the `aioncore` backend
+  survives (left untouched on purpose).
+
 ## [2.1.0] — 2026-10-17
 
 ### Added

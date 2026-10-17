@@ -8,13 +8,16 @@ echo  ============================================================
 echo    AiTron Voice Input  -  bouton micro pour AionUi
 echo  ============================================================
 echo.
-echo    PREREQUIS : AionUi doit etre COMPLETEMENT ferme
-echo                (fenetre + icone dans la barre des taches).
+echo    Tu n'as PAS besoin de fermer AionUi :
+echo    s'il tourne encore, il sera ferme de force dans 3 secondes
+echo    (Ctrl+C pour annuler). C'est necessaire, Windows verrouille
+echo    l'archive tant que l'application est ouverte.
 echo.
 echo    Ce script va :
-echo      1. sauvegarder resources\app.asar  -^>  app.asar.bak
-echo      2. ajouter le bouton micro
-echo      3. recompresser l'archive
+echo      1. fermer AionUi s'il est encore ouvert
+echo      2. sauvegarder resources\app.asar  -^>  app.asar.bak
+echo      3. ajouter le bouton micro
+echo      4. recompresser l'archive
 echo.
 echo    Un journal (.log) est ecrit dans le dossier logs.
 echo    En cas de probleme, c'est ce fichier qu'il faut transmettre.
@@ -44,8 +47,8 @@ echo.
 echo  ============================================================
 echo    ECHEC - rien n'a ete modifie.
 echo.
-echo    Verifie que AionUi est bien ferme (barre des taches incluse),
-echo    puis relance ce fichier.
+echo    Si AionUi refuse de se fermer : ouvre le gestionnaire de
+echo    taches, termine "AionUi" (toutes les lignes), relance ceci.
 echo.
 echo    Le detail exact est dans le dossier "logs"
 echo    (fichier patch-AionUi-*.log) : transmet-le pour diagnostic.
