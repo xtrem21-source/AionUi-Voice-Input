@@ -184,7 +184,9 @@ try {
 
     # --- already patched? ---------------------------------------------------
     $raw = [System.IO.File]::ReadAllBytes($asar)
-    if ([System.Text.Encoding]::Latin1.GetString($raw).Contains('voice-input.js')) {
+    # Latin1 via GetEncoding(28591): [Text.Encoding]::Latin1 only exists in .NET 5+,
+    # it is $null under Windows PowerShell 5.1 (the engine the .bat uses).
+    if ([System.Text.Encoding]::GetEncoding(28591).GetString($raw).Contains('voice-input.js')) {
         if (-not $Force) {
             throw 'This app.asar already contains voice-input.js (already patched). Use -Rollback to revert, or -Force to re-apply.'
         }

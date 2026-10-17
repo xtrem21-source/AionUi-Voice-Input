@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [2.1.2] — 2026-10-17
+
+### Fixed
+- **Crash under Windows PowerShell 5.1** — `Impossible d'appeler une méthode dans une
+  expression Null` right after the process check. Cause: `[System.Text.Encoding]::Latin1`
+  only exists in .NET 5+; under 5.1 the property is `$null`, so `.GetString()` threw.
+  Replaced with `[System.Text.Encoding]::GetEncoding(28591)` (ISO-8859-1), which exists on
+  every framework version.
+- Why the earlier test missed it: it only exercised the preconditions (app still running),
+  never the archive-reading path. The 5.1 check now covers the script's own API usage.
+
 ## [2.1.1] — 2026-10-17
 
 ### Added
