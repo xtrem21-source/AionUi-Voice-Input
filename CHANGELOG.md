@@ -17,6 +17,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
   appended to `<body>` so the composer's `z-10` stacking context and `overflow:hidden` cannot
   cover it), and returns inline when the bar widens. Resize is re-evaluated 250 ms after the
   event so the React layout has settled.
+- **During generation (working state):** AionUi replaces the send arrow with
+  `button.sendbox-stop-button`; the old lookup then selected a button of the left tool group
+  and the mic jumped to the left (x ≈ 425) until the reply finished. `findSubmitButton()` now
+  skips `.sendbox-left-tool-group`, `.sendbox-tools` and `.sendbox-model-btn`; during
+  generation the mic stays in `sendbox-actions` next to the stop button, then returns next to
+  the send arrow. Verified with a 300 ms probe over a real run: the anchor parent stayed
+  `sendbox-actions` for all 49 samples, no left jump.
 - **Documentation:** added [`docs/PORTING-NOTES.md`](docs/PORTING-NOTES.md) — what is generic
   vs app-specific, Open Cowork vs AionUi, and the checklist for a new app — and linked it from
   both READMEs, `METHODOLOGY.md` and the incident report.

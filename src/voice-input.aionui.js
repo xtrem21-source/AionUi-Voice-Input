@@ -435,6 +435,14 @@
     return !!(el && el.closest && el.closest('#ocVoiceAnchor, #ocVoiceRoot'));
   }
 
+  // Le groupe d'outils de gauche (piece jointe, brouillon, modele) ne doit
+  // jamais etre pris pour la fleche d'envoi. Pendant que l'agent travaille, le
+  // bouton d'envoi disparait et l'ancienne heuristique choisissait un bouton de
+  // gauche -> le micro sautait a gauche puis revenait.
+  function isLeftToolNode(el) {
+    return !!(el && el.closest && el.closest('.sendbox-left-tool-group, .sendbox-tools, .sendbox-draft-tooltip-anchor'));
+  }
+
   // Note un bouton : fleche d'envoi = submit, ou bouton primaire circulaire,
   // ou libelle "send/envoyer/...". Le dernier bouton visible de la barre
   // (ancienne heuristique) pouvait etre le notre.
@@ -492,6 +500,9 @@
       for (var i = btns.length - 1; i >= 0; i--) {
         var btn = btns[i];
         if (isOwnNode(btn)) continue;
+        if (isLeftToolNode(btn)) continue;
+        // le selecteur de modele n'est pas la fleche d'envoi
+        if (/sendbox-model-btn/i.test(String(btn.className || ''))) continue;
         var r = btn.getBoundingClientRect();
         if (r.width <= 8 || r.height <= 8) continue;
         // ne pas exclure les boutons desactives : la fleche d'envoi l'est

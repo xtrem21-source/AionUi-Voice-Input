@@ -304,3 +304,42 @@ Pour la checklist complète (asar, DevTools, largeurs, CSP, clé, boucles d'obse
 **Ce qu'il ne faut pas promettre sur GitHub** : que le patch fonctionne sans adaptation sur
 toutes les applications. L'attente honnête reste **~8 sur 10**, avec un ajustement de sélecteur
 ou de placement.
+
+---
+
+## 12. Suivi — pendant que l'agent travaille (état « génération »)
+
+### Symptôme
+
+Pendant qu'AionUi répond, le micro quitte la droite et part à gauche dans la fenêtre du chat
+(x ≈ 425 au lieu de x ≈ 1047), puis revient dès que la réponse est terminée.
+
+### Cause
+
+Pendant la génération, le bouton d'envoi `button.send-button-custom` **disparaît** et est
+remplacé par `button.sendbox-stop-button` (classe `bg-animate`). `findSubmitButton()` ne
+trouvait plus la flèche d'envoi et retombait sur un bouton du **groupe d'outils de gauche**
+(`sendbox-left-tool-group` / `sendbox-tools`) : le micro était réinséré à gauche.
+
+### Correctif
+
+- `findSubmitButton()` exclut désormais les boutons de
+  `.sendbox-left-tool-group`, `.sendbox-tools`, `.sendbox-draft-tooltip-anchor` et le
+  sélecteur de modèle `.sendbox-model-btn`.
+- Quand le bouton d'envoi est remplacé par le bouton d'arrêt, le meilleur candidat restant est
+  `sendbox-stop-button`, qui est dans `sendbox-actions` : le micro reste donc à droite, à côté
+  du bouton d'arrêt, puis revient à côté de la flèche d'envoi.
+
+### Vérifications (sonde de 300 ms sur un vrai run)
+
+| État | Avant | Après |
+|---|---|---|
+| Repos | `sendbox-actions`, x 1047 | `sendbox-actions`, x 1047 |
+| Génération (send remplacé par `sendbox-stop-button`) | **`sendbox-left-tool-group`, x 425** (saut de ~620 px) | **`sendbox-actions`, x 1012** (micro entre le modèle et le bouton d'arrêt, pas de saut à gauche) |
+| Fin de génération | `sendbox-actions`, x 1047 | `sendbox-actions`, x 1047 |
+| Échantillons | transition x425 de l'échantillon 3 à 28 | **49/49 échantillons dans `sendbox-actions`** |
+| Chevauchement | micro à gauche | micro 1012–1044, bouton d'arrêt 1047–1079 → 3 px d'écart, cliquable |
+
+> Limite : le test a été fait avec une vraie génération courte (« réponds uniquement par OK »)
+> dans un fil de test `e7ca3f4e`, pas dans une longue réponse. La sonde couvre 12 s de
+> génération et l'état de repos des deux côtés.

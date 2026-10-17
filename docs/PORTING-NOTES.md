@@ -32,6 +32,7 @@
 | Send button | submit-style arrow | `button.send-button-custom`, primary/text depending on state | score submit > primary > labelled send > circle > SVG |
 | Old conversation | same composer structure | send arrow wrapped in `span.sendbox-send-tooltip-anchor` (**32 px**, `overflow:hidden`) | `anchorTarget()` climbs the narrow wrapper and inserts **after** it, inside `sendbox-actions` |
 | Very narrow bar | not observed | action row can collapse to **32 px** (mobile composer) | if `groupWidth < 80`, float the mic **6 px above** the arrow (`position:fixed` in `<body>`, clickable), return inline when room exists |
+| Generation state | send button stays | `button.send-button-custom` is **replaced by `button.sendbox-stop-button`** | never fall back to the left tool group; keep the mic in `sendbox-actions` next to the stop button |
 | Re-render | works with the generic observer | the mic could become its own anchor → **renderer freeze** | exclude `#ocVoiceAnchor` / `#ocVoiceRoot`, debounce 80 ms, `observer.takeRecords()` |
 | Key source | the app config was available | `window.electronAPI.config` / `logs` are **absent** | paste the key in the panel; the "Test key" button does a real request |
 | Archive | no large `app.asar.unpacked` observed | **214 files** (native modules, helper scripts) | pack with `--unpack-dir` / `--unpack`, verify the file list, abort on unexpected growth |
@@ -76,6 +77,7 @@
 | **Never mutate the DOM synchronously inside the observer** | schedule a macrotask (80 ms), and call `takeRecords()` after your own insertions |
 | **Insert after the wrapper, not inside it** | AionUi's send arrow lives in a 32 px `overflow:hidden` tooltip wrapper; inside it, the mic overflows onto the arrow |
 | **If the action row is < 80 px, go above** | there is no room inline; floating above is the safe fallback (and it must be clickable: move it to `<body>`) |
+| **Never fall back to a left tool-group button** | during generation the send arrow is replaced by a stop button; picking a left tool button makes the mic jump across the window |
 | **Preserve `app.asar.unpacked`** | a plain repack folds native modules into the asar (+48.7 MB on AionUi) and can break them |
 | **Abort on unexpected archive growth** | catches the unpacked-fold-in regression before it reaches the user |
 | **Do not promise automatic key detection** | AionUi does not expose the other app's config API; the panel key is explicit |
