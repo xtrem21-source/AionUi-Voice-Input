@@ -343,3 +343,49 @@ trouvait plus la flèche d'envoi et retombait sur un bouton du **groupe d'outils
 > Limite : le test a été fait avec une vraie génération courte (« réponds uniquement par OK »)
 > dans un fil de test `e7ca3f4e`, pas dans une longue réponse. La sonde couvre 12 s de
 > génération et l'état de repos des deux côtés.
+
+---
+
+## 13. Suivi — envoi automatique pendant que l'agent travaille (file d'attente)
+
+### Symptôme
+
+L'agent travaille ; l'utilisateur ajoute une pièce jointe et un texte, puis déclenche la
+dictée (envoi automatique). Le message **reste dans le composeur** avec :
+
+> Envoi auto impossible (bouton indisponible). Texte copié : « … »
+
+Alors que le bouton d'envoi manuel / la flèche permet de mettre le message en attente.
+
+### Cause
+
+`submitChat()` ne connaissait que la flèche d'envoi. Pendant la génération, cette flèche est
+**désactivée** (`send-button-custom--disabled`) ; le code copiait alors le texte dans le
+presse-papiers et affichait l'erreur, sans utiliser la file d'attente d'AionUi.
+
+### Correctif
+
+- `findDraftButton()` cherche `button.sendbox-draft-tool-action` (ou son aria
+  `Draft box` / `brouillon`), en excluant le bouton d'envoi désactivé dont l'aria mentionne
+  aussi le brouillon.
+- `submitChat()` retourne `'sent'`, `'queued'` ou `false` : si l'envoi est désactivé, il clique
+  le bouton brouillon ; le texte **et la pièce jointe** passent dans
+  **« Commandes en file d'attente »**.
+- L'utilisateur voit « Agent occupé : message ajouté à la file d'attente (brouillons). Il
+  partira quand AionUi aura fini. » au lieu de l'erreur.
+
+### Vérifications (fil de test `e7ca3f4e`, agent occupé)
+
+| Contrôle | Résultat |
+|---|---|
+| Bouton d'envoi | `send-button-custom--disabled`, aria « This agent is still working… » |
+| Bouton brouillon | `sendbox-draft-tool-action--enabled`, aria « Save to Draft box… », actif |
+| `window.__ocVoice.submitChat()` | **`'queued'`** |
+| Composeur après l'appel | **vide** (le texte a quitté la fenêtre) |
+| Panneau latéral | **« Commandes en file d'attente » → 1 → Envoi manuel → « Test file attente »** |
+| Envoi normal (bouton actif) | chemin inchangé, retour `'sent'` |
+
+> Limite : le test de file d'attente a été fait avec du texte ; la pièce jointe suit le
+> brouillon du composeur (même bouton, même état), mais je n'ai pas rejoué un upload réel dans
+> cette vérification. Le bouton brouillon est le mécanisme natif d'AionUi pour le composeur
+> complet.

@@ -983,8 +983,13 @@
           // reecrire le champ sans le mot-cle de fin, puis envoyer
           writeInput(finalText);
           setTimeout(function () {
-            if (submitChat()) showBubble('Message envoyé : « ' + escapeHtml(finalText) + ' »', 'ok', 5000);
-            else {
+            var sent = submitChat();
+            if (sent === 'sent') {
+              showBubble('Message envoyé : « ' + escapeHtml(finalText) + ' »', 'ok', 5000);
+            } else if (sent === 'queued') {
+              showBubble('Agent occupé : message ajouté à la file d\'attente (brouillons). ' +
+                'Il partira quand AionUi aura fini.', 'ok', 7000);
+            } else {
               copyToClipboard(finalText);
               showBubble('Envoi auto impossible (bouton indisponible). Texte copié : « ' + escapeHtml(finalText) + ' »', 'error', 9000);
             }
@@ -1260,15 +1265,57 @@
     return { hit: true, text: words.slice(0, end).join(' ').trim() };
   }
 
+  // AionUi : quand l'agent travaille, l'envoi est desactive mais un bouton
+  // "brouillon" (sendbox-draft-tool-action) met le message et ses pieces
+  // jointes dans la file d'attente. C'est ce bouton qu'il faut utiliser pour
+  // l'envoi automatique, au lieu de laisser le texte dans le composeur.
+  function findDraftButton() {
+    var direct = document.querySelector('button.sendbox-draft-tool-action');
+    if (direct && !direct.disabled && !isOwnNode(direct)) {
+      var r = direct.getBoundingClientRect();
+      if (r.width > 8 && r.height > 8) return direct;
+    }
+    var btns = document.querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++) {
+      var b = btns[i];
+      if (b.disabled || isOwnNode(b)) continue;
+      var cls = typeof b.className === 'string' ? b.className : '';
+      // le bouton d'envoi desactive mentionne "Draft box" dans son aria :
+      // ne jamais le confondre avec le vrai bouton brouillon.
+      if (/send-button-custom/.test(cls)) continue;
+      var label = String(b.getAttribute('aria-label') || '') + ' ' + String(b.getAttribute('title') || '');
+      if (!/draft|brouillon/i.test(label) && !/sendbox-draft-tool-action/.test(cls)) continue;
+      var q = b.getBoundingClientRect();
+      if (q.width > 8 && q.height > 8) return b;
+    }
+    return null;
+  }
+
   // Clique le bouton d'envoi (fleche) du chat, si disponible et actif.
+  // Si l'agent travaille (bouton desactive), met le message en file d'attente
+  // via le bouton brouillon. Retourne 'sent', 'queued' ou false.
   function submitChat() {
     var btn = findSubmitButton();
-    if (!btn || btn.disabled) { log('submitChat: bouton envoi indisponible/desactive'); return false; }
-    try {
-      btn.click();
-      return true;
-    } catch (e) { log('submitChat: clic impossible', e); return false; }
+    if (btn && !btn.disabled) {
+      try {
+        btn.click();
+        return 'sent';
+      } catch (e) { log('submitChat: clic envoi impossible', e); }
+    }
+    var draft = findDraftButton();
+    if (draft) {
+      try {
+        draft.click();
+        log('submitChat: agent occupe -> message mis en file d attente (brouillon)');
+        return 'queued';
+      } catch (e) { log('submitChat: clic brouillon impossible', e); }
+    }
+    log('submitChat: bouton envoi indisponible/desactive, pas de brouillon');
+    return false;
   }
+
+  // Point d'entree de diagnostic pour les sondes de non-regression.
+  try { window.__ocVoice.submitChat = submitChat; } catch (e) {}
 
   /* ---------- démarrage ---------- */
   var tries = 0;

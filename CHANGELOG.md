@@ -24,6 +24,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
   generation the mic stays in `sendbox-actions` next to the stop button, then returns next to
   the send arrow. Verified with a 300 ms probe over a real run: the anchor parent stayed
   `sendbox-actions` for all 49 samples, no left jump.
+- **Auto-send while the agent is busy:** `submitChat()` now returns `'sent'`, `'queued'` or
+  `false`. If the send arrow is disabled, it clicks AionUi's `sendbox-draft-tool-action`
+  (draft/queue) instead of copying the text and showing
+  `Envoi auto impossible (bouton indisponible)`. The queued text and attachment appear in
+  **« Commandes en file d'attente »** and leave when the agent is free. Verified:
+  `submitChat()` → `'queued'`, composer cleared, queue count 1.
 - **Documentation:** added [`docs/PORTING-NOTES.md`](docs/PORTING-NOTES.md) — what is generic
   vs app-specific, Open Cowork vs AionUi, and the checklist for a new app — and linked it from
   both READMEs, `METHODOLOGY.md` and the incident report.
