@@ -320,6 +320,8 @@
       if (e.key === 'Escape' && panel.style.display === 'block') panel.style.display = 'none';
     });
     window.addEventListener('resize', function () { positionOverlay(root); });
+    // Si la barre de saisie bouge (scroll interne du chat), le panneau doit suivre.
+    window.addEventListener('scroll', function () { positionOverlay(root); }, true);
     return st.ui;
   }
 
@@ -327,12 +329,25 @@
   function positionOverlay(root) {
     try {
       var btn = st.ui && st.ui.btn;
-      if (btn && btn.offsetParent !== null) {
+      // 1) Bouton ancre DANS la barre de saisie : on se cale sur le bouton.
+      if (st.anchored && btn && btn.offsetParent !== null) {
         var r = btn.getBoundingClientRect();
         var right = Math.max(8, window.innerWidth - r.right);
         root.style.right = right + 'px';
         root.style.left = 'auto';
         root.style.bottom = Math.max(8, window.innerHeight - r.top + 8) + 'px';
+        root.style.top = 'auto';
+        return;
+      }
+      // 2) Bouton flottant : NE PAS se caler sur le bouton (il est lui-meme dans le
+      //    conteneur fixe -> calcul circulaire, il "part en cacahuete" au resize).
+      //    On se cale sur le CHAMP DE SAISIE, qui lui suit la mise en page.
+      var area = findInput();
+      if (area) {
+        var ar = area.getBoundingClientRect();
+        root.style.right = Math.max(8, window.innerWidth - ar.right) + 'px';
+        root.style.left = 'auto';
+        root.style.bottom = Math.max(8, window.innerHeight - ar.top + 10) + 'px';
         root.style.top = 'auto';
         return;
       }

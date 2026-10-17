@@ -65,6 +65,12 @@ The button is meant to sit **immediately to the right of the send arrow**.
 A `MutationObserver` watches the app root and re-mounts the button when the UI re-renders.
 A `getElementById` guard prevents duplicates.
 
+> 🧷 **Why the button must stay inside the composer.** A button living in the composer's DOM
+> follows every layout change (window resize, zoom, sidebar toggle). A `position:fixed`
+> fallback is computed **once** and then drifts — it must be recomputed on `resize` **and**
+> `scroll`, and always from the **textarea's** rect, never from the button's own rect
+> (circular when the button sits inside the fixed container).
+
 **App-specific anchoring is the #1 thing to adapt when porting to a new app** — see
 [SUPPORTED-APPS.md](SUPPORTED-APPS.md).
 

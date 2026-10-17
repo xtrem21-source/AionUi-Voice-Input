@@ -168,6 +168,23 @@ const SEND_SELECTOR =
 
 > Locate it in the app's DevTools: right-click the arrow → *Inspect*.
 
+> ### 🧷 Anchoring rule — learned the hard way
+>
+> **The button must live inside the composer's DOM** (a sibling of the send button).
+>
+> A `position:fixed` floating button looks right *until the window is resized* — then it drifts
+> and ends up anywhere in the chat, because its coordinates were computed once. In-composer
+> anchoring follows the layout for free: resize, zoom, sidebar toggle, all of it.
+>
+> Rules:
+> 1. **Prefer** inserting into the composer row (inline, right of the send arrow).
+> 2. If the row is too narrow, use `position:absolute` **inside** the composer
+>    (`right:0; bottom:calc(100% + 6px)` on a 0×0 relative anchor) — still in the DOM, still
+>    follows the layout.
+> 3. Keep `position:fixed` **only** as a last resort, and then recompute on `resize` **and**
+>    `scroll` from the **textarea's** rect — **never** from the button's own rect
+>    (the button lives inside the fixed container: that calculation is circular and drifts).
+
 > **Layout note — the window does NOT widen.** Adding a button to the composer row takes
 > roughly **32 px from the textarea**; it never enlarges the window. If the window is narrow,
 > place the mic **above** the send button instead: give the wrapper `position:relative;

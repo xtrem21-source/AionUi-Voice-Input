@@ -45,7 +45,9 @@ param(
 
     [string]$ScriptPath = (Join-Path $PSScriptRoot '..\src\voice-input.js'),
 
-    [switch]$Rollback
+    [switch]$Rollback,
+
+    [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
@@ -110,11 +112,21 @@ if (-not (Test-Path $ScriptPath)) { throw "Source script not found: $ScriptPath"
 # --- already patched? --------------------------------------------------------
 $raw = [System.IO.File]::ReadAllBytes($asar)
 if ([System.Text.Encoding]::Latin1.GetString($raw).Contains('voice-input.js')) {
-    throw "This app.asar already contains voice-input.js (already patched). Use -Rollback to revert."
+    if (-not $Force) {
+        throw "This app.asar already contains voice-input.js (already patched). Use -Rollback to revert, or -Force to re-apply."
+    }
+    if (-not (Test-Path $bak)) {
+        throw "Already patched, but no backup ($bak) to start from. Reinstall the app, or run -Rollback if a backup exists."
+    }
+    Write-Host "Already patched -> restoring the clean backup before re-applying." -ForegroundColor Yellow
+    Copy-Item $bak $asar -Force
+    $raw = [System.IO.File]::ReadAllBytes($asar)
 }
 
 # --- backup ------------------------------------------------------------------
-Copy-Item $asar $bak -Force
+if (-not $Force -or -not (Test-Path $bak)) {
+    Copy-Item $asar $bak -Force
+}
 Write-Host "Backup    : $bak" -ForegroundColor DarkGray
 
 $tmp     = Join-Path $env:TEMP ("asar-patch-" + [guid]::NewGuid().ToString('N'))
