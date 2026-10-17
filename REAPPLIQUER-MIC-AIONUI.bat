@@ -5,16 +5,18 @@ cd /d "%~dp0"
 
 echo.
 echo  ============================================================
-echo    AiTron Voice Input  -  MISE A JOUR (deja patche)
+echo    AiTron Voice Input  -  MISE A JOUR
 echo  ============================================================
 echo.
 echo    A utiliser quand le correctif est DEJA installe et que tu
-echo    veux la nouvelle version du script (placement, correctifs).
+echo    veux la version courante du script.
 echo.
-echo    Le script restaure d'abord la sauvegarde propre, puis
-echo    reapplique la version courante.
+echo    Le script restaure d'abord la sauvegarde propre,
+echo    puis reapplique la nouvelle version.
 echo.
 echo    PREREQUIS : AionUi COMPLETEMENT ferme.
+echo.
+echo    Un journal (.log) est ecrit dans le dossier logs.
 echo  ------------------------------------------------------------
 echo.
 
@@ -25,6 +27,7 @@ if errorlevel 1 goto :echec
 echo.
 echo  ============================================================
 echo    MISE A JOUR TERMINEE - relance AionUi.
+echo    Journal : dossier "logs" (fichier patch-AionUi-*.log)
 echo  ============================================================
 echo.
 pause
@@ -33,8 +36,9 @@ exit /b 0
 :echec
 echo.
 echo  ============================================================
-echo    ECHEC - voir le detail ci-dessus.
-echo    Sauvegarde intacte : resources\app.asar.bak
+echo    ECHEC - voir le detail dans le dossier "logs"
+echo    (fichier patch-AionUi-*.log). Sauvegarde intacte :
+echo    resources\app.asar.bak
 echo  ============================================================
 echo.
 pause

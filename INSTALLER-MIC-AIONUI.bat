@@ -12,11 +12,12 @@ echo    PREREQUIS : AionUi doit etre COMPLETEMENT ferme
 echo                (fenetre + icone dans la barre des taches).
 echo.
 echo    Ce script va :
-echo      1. sauvegarder resources\app.asar  ->  app.asar.bak
+echo      1. sauvegarder resources\app.asar  -^>  app.asar.bak
 echo      2. ajouter le bouton micro
 echo      3. recompresser l'archive
 echo.
-echo    En cas de probleme : app.asar.bak permet de tout restaurer.
+echo    Un journal (.log) est ecrit dans le dossier logs.
+echo    En cas de probleme, c'est ce fichier qu'il faut transmettre.
 echo  ------------------------------------------------------------
 echo.
 
@@ -31,6 +32,8 @@ echo.
 echo    Relance AionUi, puis :
 echo      - le micro apparait a cote / au-dessus de la fleche
 echo      - CLIC DROIT dessus  ^>  roue dentee  ^>  colle ta cle Gemini
+echo.
+echo    Journal : dossier "logs" (fichier patch-AionUi-*.log)
 echo  ============================================================
 echo.
 pause
@@ -44,7 +47,8 @@ echo.
 echo    Verifie que AionUi est bien ferme (barre des taches incluse),
 echo    puis relance ce fichier.
 echo.
-echo    Si le probleme persiste, le detail est affiche plus haut.
+echo    Le detail exact est dans le dossier "logs"
+echo    (fichier patch-AionUi-*.log) : transmet-le pour diagnostic.
 echo  ============================================================
 echo.
 pause

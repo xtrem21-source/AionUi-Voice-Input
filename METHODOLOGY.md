@@ -71,6 +71,29 @@ Get-Process <AppName>   # must return NOTHING: the archive is locked while runni
 > If the app is a **portable/unpacked** install (`resources\app\` instead of
 > `resources\app.asar`), you can skip all repacking — that is the easy path (§4.B).
 
+### 📝 Always produce a log file (non-negotiable)
+
+Every run must write a **timestamped log**: `logs/patch-<app>-<yyyyMMdd-HHmmss>.log` containing
+the date, the resolved paths, each step, the full `npx` output, and the exact error message.
+
+Why: the user hands you the log and you know **exactly** what happened — no need to ask them to
+reproduce anything. A patch that fails silently is worse than no patch at all.
+
+### ⚠️ Keep your scripts 100% ASCII
+
+Windows PowerShell 5.1 reads a `.ps1` **without BOM** as ANSI, and a single non-ASCII character
+breaks parsing spectacularly: an em dash `—` (UTF-8 `E2 80 94`) becomes `â€”` in CP1252, and
+`0x94` is a **curly closing quote — which PowerShell accepts as a string delimiter**. Everything
+after it fails to parse.
+
+Rules:
+
+- No em dashes, curly quotes, accents or emoji in `.ps1` / `.bat` — **comments included**
+- Use `-` instead of `—`, straight quotes `"` `'`
+- In `.bat`, escape `>` as `^>` inside `echo` lines (otherwise `->` silently becomes a **file
+  redirection** and the line disappears — it cost us a stray `app.asar.bak` file)
+- Test with **`powershell.exe`** (5.1), not only `pwsh` (7)
+
 ---
 
 ## 3. Step 1 — Locate the renderer entry
