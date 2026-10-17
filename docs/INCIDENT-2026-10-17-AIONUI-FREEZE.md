@@ -7,6 +7,13 @@ Ce rapport garde la trace de ce qui a été modifié, des deux défauts trouvés
 diagnostic et des contrôles qui prouvent la correction. Il sert de point de départ si le
 problème revient ou s'il faut porter le correctif sur une autre application.
 
+> **À lire comme une étude de cas, pas comme un correctif universel.** Le script générique
+> fonctionnait très bien sur **Open Cowork** ; **AionUi** a demandé quelques adaptations
+> précises (ancrage DOM, `app.asar.unpacked`, accès à la clé). C'est le comportement attendu
+> d'un port : la méthode se réutilise, les sélecteurs et le conditionnement de l'archive
+> changent. Checklist et tableau des différences :
+> [`PORTING-NOTES.md`](PORTING-NOTES.md).
+
 ---
 
 ## 1. Symptôme observé
@@ -270,3 +277,30 @@ après l'événement pour laisser le layout React se stabiliser.
 > Limite de la vérification : je n'ai **pas envoyé** de message réel dans le fil (pour ne pas
 > polluer la conversation) ; le changement d'état envoi activé/désactivé et les changements de
 > vue couvrent la réorganisation du DOM observée.
+
+---
+
+## 11. Publication GitHub — ce qui est générique, ce qui est propre à AionUi
+
+Ce rapport est une **étude de cas**. Le message à retenir pour la publication :
+
+| Élément | Réutilisable tel quel | À réadapter pour une autre application |
+|---|---|---|
+| Capture audio + Gemini | oui | — |
+| Insertion React (`value` setter + `input`) | oui | type de composeur (`textarea` / `contenteditable`) |
+| Panneau de réglages | oui | source de la clé (API de config ou saisie manuelle) |
+| `MutationObserver` | oui | cible, règles de ré-ancrage, anti-auto-ancrage |
+| Ancrage du micro | partiellement | wrapper du bouton d'envoi, largeur de la barre, fallback au-dessus |
+| Patch asar | partiellement | `app.asar.unpacked`, chemins HTML/JS, CSP |
+
+**Open Cowork** : composeur dans un `<form>` avec `button[type=submit]` ; le script générique
+suffisait. **AionUi** : pas de `<form>`, bouton d'envoi enveloppé dans un tooltip de 32 px dans
+les anciens fils, barre mobile de 32 px, `app.asar.unpacked` de 214 fichiers, pas d'API
+`electronAPI.config` — d'où les adaptations décrites ici.
+
+Pour la checklist complète (asar, DevTools, largeurs, CSP, clé, boucles d'observateur) :
+[`PORTING-NOTES.md`](PORTING-NOTES.md).
+
+**Ce qu'il ne faut pas promettre sur GitHub** : que le patch fonctionne sans adaptation sur
+toutes les applications. L'attente honnête reste **~8 sur 10**, avec un ajustement de sélecteur
+ou de placement.

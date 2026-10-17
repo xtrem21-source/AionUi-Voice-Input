@@ -106,6 +106,10 @@ already patched — use `-Force` to reinstall over an existing patch.
 > **~8 out of 10 — not 100%.** Electron chat apps differ in their composer and their send
 > button. The *method* adapts; the script may need **one selector tweak** (§5 of
 > [`METHODOLOGY.md`](METHODOLOGY.md)). That is the honest expectation.
+>
+> 📦 **Porting to another app?** Read [`docs/PORTING-NOTES.md`](docs/PORTING-NOTES.md):
+> what is generic, what changed for AionUi (old-thread tooltip wrapper, narrow bar, asar
+> unpacked, key source), and the checklist to adapt the patch without overfitting it.
 
 Adding an app is usually **one row** in `scripts/apply-patch.ps1` + a selector tweak.
 See [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
@@ -143,6 +147,7 @@ src/voice-input.js      the injectable script (~45 KB, zero dependencies)
 scripts/apply-patch.*   safe asar patchers (Windows / macOS-Linux)
 docs/HOW-IT-WORKS.md    architecture, DOM anchoring, React compatibility
 docs/SUPPORTED-APPS.md  per-app paths, selectors, expected success rate
+docs/PORTING-NOTES.md   what is generic vs app-specific; checklist for a new app
 docs/INCIDENT-2026-10-17-AIONUI-FREEZE.md  incident report: renderer freeze, diagnosis, fix
 ```
 

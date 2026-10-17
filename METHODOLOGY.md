@@ -9,6 +9,11 @@
 
 **This file is the product. The patch script is just one way to execute it.**
 
+> **Porting a second app?** Open Cowork worked with the generic script; AionUi needed specific
+> adaptations (send-button wrapper, narrow action bar, `app.asar.unpacked`, key source).
+> Read [`docs/PORTING-NOTES.md`](docs/PORTING-NOTES.md) before you start: it lists what is
+> generic, what changes per app, and the checklist to avoid overfitting the patch.
+
 ---
 
 ## 0. Your mission (agent reading this)

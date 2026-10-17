@@ -100,6 +100,11 @@ ouverte ou déjà patchée.
 > **~8 sur 10 — pas 100 %.** Les applications Electron diffèrent par leur zone de saisie et
 > leur bouton d'envoi. La *méthode* s'adapte ; le script peut demander **un ajustement de
 > sélecteur** (§5 de [`METHODOLOGY.md`](METHODOLOGY.md)). C'est l'attente honnête.
+>
+> 📦 **Porter vers une autre application ?** Lis
+> [`docs/PORTING-NOTES.md`](docs/PORTING-NOTES.md) : ce qui est générique, ce qui a dû être
+> adapté pour AionUi (wrapper tooltip des anciens fils, barre étroite, `app.asar.unpacked`,
+> source de la clé) et la checklist pour éviter de sur-adapter le patch.
 
 Ajouter une application = généralement **une ligne** dans le script + un ajustement de sélecteur.
 Voir [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
