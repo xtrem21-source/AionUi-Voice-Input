@@ -389,3 +389,43 @@ presse-papiers et affichait l'erreur, sans utiliser la file d'attente d'AionUi.
 > brouillon du composeur (même bouton, même état), mais je n'ai pas rejoué un upload réel dans
 > cette vérification. Le bouton brouillon est le mécanisme natif d'AionUi pour le composeur
 > complet.
+
+---
+
+## 14. Limite connue — plusieurs messages en file d'attente (côté AionUi)
+
+### Observation (2026-10-18)
+
+Trois messages (avec/sans pièce jointe) ont été mis en file pendant que l'agent travaillait.
+Quand l'agent s'est débloqué :
+
+- le **premier** message est parti automatiquement ;
+- les **deux suivants** sont restés dans **« Commandes en file d'attente »**, marqués
+  *Envoi manuel*, et ont dû être envoyés à la main.
+
+### Analyse
+
+Le patch ne gère **pas** la file : `submitChat()` se contente de cliquer
+`sendbox-draft-tool-action`. Le contenu, l'ordre, le compteur et l'envoi des éléments sont
+l'état React d'AionUi. La vidange de la file est donc **côté application**.
+
+Ce n'est **pas une régression** du patch :
+
+| Avant | Après |
+|---|---|
+| le texte restait dans le composeur avec « Envoi auto impossible » | le texte et la pièce jointe entrent correctement dans la file |
+
+Le libellé *Envoi manuel* suggère que la boîte de brouillons n'est pas conçue comme une file
+100 % automatique : AionUi en envoie un, puis laisse les suivants à l'utilisateur.
+
+### Ce qu'il faut retenir
+
+- Ne pas automatiser la vidange depuis le script injecté : on ne connaît pas l'API interne de
+  la file, et cliquer les éléments au mauvais moment peut doubler les envois.
+- Pour un test propre : mettre 3 messages en file, **ne rien toucher**, attendre la fin du
+  premier run ; si les suivants ne partent pas, c'est le comportement/limite d'AionUi.
+- À signaler en amont (issue AionUi) plutôt qu'à corriger dans le patch.
+
+> Vérification : observation utilisateur (3 files, premier envoi automatique, deux manuels).
+> Je n'ai pas reproduit la chaîne complète des trois envois ; le code du patch, lui, ne fait
+> que cliquer le bouton brouillon.

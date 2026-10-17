@@ -80,6 +80,7 @@
 | **If the action row is < 80 px, go above** | there is no room inline; floating above is the safe fallback (and it must be clickable: move it to `<body>`) |
 | **Never fall back to a left tool-group button** | during generation the send arrow is replaced by a stop button; picking a left tool button makes the mic jump across the window |
 | **When the app is busy, queue instead of copying** | AionUi disables the send arrow but exposes `sendbox-draft-tool-action`; clicking it puts the text + attachment in « Commandes en file d'attente ». Copying to the clipboard and showing an error breaks the auto-send promise. |
+| **Do not drain the app's queue from the injected script** | the queue order/sending is the app's React state; clicking queued items yourself can duplicate or race. AionUi sends the first queued item and leaves the rest as *Envoi manuel* — report it upstream. |
 | **Preserve `app.asar.unpacked`** | a plain repack folds native modules into the asar (+48.7 MB on AionUi) and can break them |
 | **Abort on unexpected archive growth** | catches the unpacked-fold-in regression before it reaches the user |
 | **Do not promise automatic key detection** | AionUi does not expose the other app's config API; the panel key is explicit |

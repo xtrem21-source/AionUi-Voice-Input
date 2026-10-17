@@ -42,6 +42,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
   stays clickable and never overlaps the send arrow.
 - `node --check` on the source and the asar-extracted script, SHA-256 source = asar.
 
+### Known limitation (AionUi side, not the patch)
+
+- When **several** messages are queued while the agent is busy, AionUi auto-sends the first
+  one when it becomes idle; the remaining items stay in **« Commandes en file d'attente »**
+  (labeled *Envoi manuel*) and must be sent manually. Observed on 2026-10-18 with three
+  queued messages/attachments. The patch only clicks `sendbox-draft-tool-action`; draining
+  the queue is AionUi's own React state/UI. Automating the drain from the injected script
+  would risk duplicates and races — leave it upstream.
+
 ## [2.1.4] — 2026-10-17
 
 ### Fixed
