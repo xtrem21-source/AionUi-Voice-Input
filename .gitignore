@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build / patch artefacts
+*.asar
+*.asar.bak
+app.asar.new-*
+*.tmp
+
+# Secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+*.key
+*secret*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local test output
+asar-out/
+*.log
