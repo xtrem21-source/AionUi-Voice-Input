@@ -1,9 +1,14 @@
-/* open-cowork-voice-input v4 — saisie vocale (transcription Gemini) pour AionUi
+/* open-cowork-voice-input v5 — saisie vocale (transcription Gemini) pour AionUi
  * Ajoute un bouton micro ancré DANS la barre de saisie du chat (il suit donc le
  * redimensionnement et le déplacement de la fenêtre) : enregistre votre voix,
  * l'envoie à l'API Gemini pour transcription, puis insère le texte dans le champ de saisie.
  * Aucune dépendance, aucun paquet à installer. La clé API reste en local (localStorage).
  *
+ * v5 : ancrage des anciens fils AionUi — la flèche d'envoi y est enveloppée dans
+ *      un petit conteneur tooltip de 32 px (overflow:hidden). Le micro est
+ *      inséré APRÈS ce conteneur, dans la vraie barre sendbox-actions, quand
+ *      elle a la place ; sinon il flotte AU-DESSUS de la flèche (position:fixed,
+ *      hors du contexte d'empilement du composeur) et suit le redimensionnement.
  * v4 : le bouton "Tester la clé Gemini" fonctionne réellement (validation de la clé
  *      ET du modèle, message d'erreur dans le panneau) ; l'absence de clé est
  *      expliquée dans le panneau au lieu d'être masquée par lui ; arrêt
@@ -23,7 +28,7 @@
 (function () {
   'use strict';
   if (window.__ocVoice) return;
-  window.__ocVoice = { version: 4 };
+  window.__ocVoice = { version: 5 };
 
   var LS = {
     key: 'ocVoice.geminiKey',
@@ -90,7 +95,8 @@
     scheduled: false,    // re-ancrage déjà planifié (debounce)
     anchorLogged: false, // n'écrire le résultat de l'ancrage qu'une fois
     starting: false,     // getUserMedia en cours (évite deux enregistreurs)
-    finishing: false     // finishRecording déjà lancé (évite une double transcription)
+    finishing: false,    // finishRecording déjà lancé (évite une double transcription)
+    micFixed: false      // micro flottant au-dessus de la flèche (barre trop étroite)
   };
 
   // Journalisation double : console du renderer + fichier de logs de l'application
@@ -311,7 +317,17 @@
         // ET toujours placee juste apres la fleche d'envoi.
         var el = document.getElementById('ocVoiceAnchor');
         var submit = findSubmitButton();
-        var wellPlaced = !!(el && el.isConnected && submit && submit.nextElementSibling === el);
+        var target = submit ? anchorTarget(submit) : null;
+        // Mode flottant : tant que la barre est etroite, on met juste a jour
+        // les coordonnees (pas de re-ancrage dans le DOM du composeur).
+        if (st.micFixed && el && el.parentNode === document.body) {
+          if (submit && target && target.group && target.group.getBoundingClientRect().width < 80) {
+            placeFixedMic(submit);
+            return;
+          }
+        }
+        var wellPlaced = !!(el && el.isConnected && target && target.group &&
+          el.parentNode === target.group && target.after.nextElementSibling === el);
         if (st.anchored && wellPlaced) return;
         // si pas de barre de saisie ET bouton deja masque : rien a faire
         if (!submit && el && el.style.display === 'none') return;
@@ -352,7 +368,16 @@
         positionOverlay(st.ui.root);
       }
     });
-    window.addEventListener('resize', function () { positionOverlay(root); });
+    window.addEventListener('resize', function () {
+      // Re-ancrer : la barre peut changer de structure/largeur au redimensionnement.
+      mountAnchored();
+      positionOverlay(root);
+      // Le layout React peut se stabiliser apres l'evenement resize : re-verifier.
+      setTimeout(function () {
+        mountAnchored();
+        positionOverlay(root);
+      }, 250);
+    });
     // Si la barre de saisie bouge (scroll interne du chat), le panneau doit suivre.
     window.addEventListener('scroll', function () { positionOverlay(root); }, true);
     return st.ui;
@@ -361,9 +386,12 @@
   /** Place le conteneur flottant (bulles/panneau) près du bouton micro, sinon coin bas-droit. */
   function positionOverlay(root) {
     try {
+      if (st.micFixed) placeFixedMic(findSubmitButton());
       var btn = st.ui && st.ui.btn;
       // 1) Bouton ancre DANS la barre de saisie : on se cale sur le bouton.
-      if (st.anchored && btn && btn.offsetParent !== null) {
+      //    (offsetParent est null pour un element position:fixed : on teste
+      //    plutot la connexion et une taille non nulle.)
+      if (st.anchored && btn && btn.isConnected && btn.getBoundingClientRect().width > 0) {
         var r = btn.getBoundingClientRect();
         var right = Math.max(8, window.innerWidth - r.right);
         root.style.right = right + 'px';
@@ -422,6 +450,27 @@
     return score;
   }
 
+  // Dans un ancien fil AionUi, la fleche d'envoi est enveloppee dans un petit
+  // conteneur (span.sendbox-send-tooltip-anchor, 32 px, overflow:hidden).
+  // Inserer le micro DANS ce conteneur le fait deborder sur la fleche. On
+  // remonte alors les enveloppes etroites et on insere APRES elles, dans la
+  // vraie barre d'actions (sendbox-actions).
+  function anchorTarget(submit) {
+    var after = submit;
+    var group = submit.parentElement;
+    while (group && group.parentElement) {
+      var gr = group.getBoundingClientRect();
+      var up = group.parentElement.getBoundingClientRect();
+      if (gr.width <= 48 && up.width > gr.width + 16) {
+        after = group;
+        group = group.parentElement;
+      } else {
+        break;
+      }
+    }
+    return { group: group, after: after };
+  }
+
   // Trouve le bouton d'envoi (fleche) de la barre de saisie.
   // 1) cas standard : button[type=submit] dans le <form> qui contient le textarea.
   // 2) cas AionUi / React sans <form> : on note les boutons de la barre de saisie
@@ -455,6 +504,37 @@
     return null;
   }
 
+  // Micro flottant AU-DESSUS de la fleche quand la barre d'actions est trop
+  // etroite (vieux fil AionUi a 600 px : la barre ne fait que 32 px).
+  // position:fixed echappe a l'overflow:hidden du panneau ; les coordonnees
+  // sont recalculees depuis la fleche a chaque resize/scroll.
+  function placeFixedMic(submit) {
+    var ui = st.ui;
+    if (!ui || !ui.anchor || !submit) return;
+    var wrap = submit.parentElement;
+    var wrapRect = wrap ? wrap.getBoundingClientRect() : null;
+    var vis = (wrapRect && wrapRect.width <= 48) ? wrapRect : submit.getBoundingClientRect();
+    var a = ui.anchor;
+    // Sortir du contexte d'empilement du composeur (z-10) : sinon le contenu
+    // du chat passe au-dessus du micro fixe et le rend incliquable.
+    if (a.parentNode !== document.body) {
+      try { document.body.appendChild(a); } catch (e) {}
+      if (st.observer) { try { st.observer.takeRecords(); } catch (e) {} }
+    }
+    a.style.position = 'fixed';
+    a.style.left = 'auto';
+    a.style.top = 'auto';
+    a.style.right = Math.max(8, window.innerWidth - vis.right) + 'px';
+    a.style.bottom = Math.max(8, window.innerHeight - vis.top + 6) + 'px';
+    a.style.width = '32px';
+    a.style.height = '32px';
+    a.style.margin = '0';
+    a.style.zIndex = '2147483000';
+    ui.btn.style.position = '';
+    ui.btn.style.right = '';
+    ui.btn.style.bottom = '';
+  }
+
   /** Insère le micro JUSTE A DROITE de la fleche d'envoi ; repli flottant sinon. */
   function mountAnchored() {
     if (!st.ui || st.anchoring) return;
@@ -466,17 +546,26 @@
     var submit = findSubmitButton();
     // defense en profondeur : ne jamais s'ancrer sur soi-meme
     if (submit && (submit === st.ui.btn || anchor.contains(submit))) submit = null;
-    if (submit && submit.parentElement) {
-      var group = submit.parentElement; // le groupe de droite (flex items-center gap-2)
+    var target = submit ? anchorTarget(submit) : null;
+    if (target && target.group) {
+      var group = target.group;
+      var after = target.after;
+      // Mode flottant deja actif et barre toujours etroite : rester au-dessus.
+      if (st.micFixed && anchor.parentNode === document.body &&
+          group.getBoundingClientRect().width < 80) {
+        placeFixedMic(submit);
+        positionOverlay(st.ui.root);
+        return;
+      }
       // deja place juste apres la fleche ? rien a faire.
-      if (st.anchored && anchor.parentNode === group && submit.nextElementSibling === anchor) {
+      if (st.anchored && anchor.parentNode === group && after.nextElementSibling === anchor) {
         positionOverlay(st.ui.root);
         return;
       }
       st.anchoring = true;
       try {
         try { anchor.remove(); } catch (e) {}
-        if (submit.nextSibling) group.insertBefore(anchor, submit.nextSibling);
+        if (after.nextSibling) group.insertBefore(anchor, after.nextSibling);
         else group.appendChild(anchor);
         // ignorer les mutations que l'on vient de provoquer nous-memes
         if (st.observer) { try { st.observer.takeRecords(); } catch (e) {} }
@@ -488,32 +577,31 @@
       st.anchoring = false;
       st.anchored = true;
       hideAnchor(false);
-      positionOverlay(st.ui.root);
 
-      // --- placement adaptatif ---------------------------------------------
-      // AionUi n'elargit PAS la fenetre quand on ajoute un bouton dans la barre :
-      // il prend ~32 px au champ de saisie. Si le champ est etroit, on superpose
-      // le micro AU-DESSUS de la fleche (aucun impact sur la mise en page).
-      var areaW = findInput();
-      var avail = areaW ? areaW.getBoundingClientRect().width : 9999;
-      if (avail < 220) {
-        anchor.style.position = 'relative';
-        anchor.style.width = '0';
-        anchor.style.height = '0';
-        st.ui.btn.style.position = 'absolute';
-        st.ui.btn.style.right = '0';
-        st.ui.btn.style.bottom = 'calc(100% + 6px)';
-        if (!st.anchorLogged) logWarn('ancrage: champ etroit (' + Math.round(avail) + 'px) -> micro AU-DESSUS de la fleche');
+      // --- placement : a droite si la barre a la place, sinon AU-DESSUS ------
+      var groupWidth = group.getBoundingClientRect().width;
+      if (groupWidth < 80) {
+        st.micFixed = true;
+        placeFixedMic(submit);
+        if (!st.anchorLogged) logWarn('ancrage: barre etroite (' + Math.round(groupWidth) + 'px) -> micro AU-DESSUS de la fleche');
       } else {
+        st.micFixed = false;
         anchor.style.position = '';
         anchor.style.width = '';
         anchor.style.height = '';
+        anchor.style.margin = '';
+        anchor.style.left = '';
+        anchor.style.right = '';
+        anchor.style.top = '';
+        anchor.style.bottom = '';
+        anchor.style.zIndex = '';
         st.ui.btn.style.position = '';
         st.ui.btn.style.right = '';
         st.ui.btn.style.bottom = '';
         if (!st.anchorLogged) logWarn('ancrage REUSSI (juste a droite de la fleche d\'envoi)');
       }
       st.anchorLogged = true;
+      positionOverlay(st.ui.root);
       return;
     }
     // Pas de barre de saisie (ecran d'accueil, autre vue...) : on MASQUE le micro
@@ -524,6 +612,7 @@
       if (st.observer) { try { st.observer.takeRecords(); } catch (e) {} }
       st.anchored = false;
       st.anchorLogged = false;
+      st.micFixed = false;
     }
     hideAnchor(true);
   }
@@ -1172,7 +1261,7 @@
 
   /* ---------- démarrage ---------- */
   var tries = 0;
-  var VERSION = 4;
+  var VERSION = 5;
   function init() {
     tries++;
     var hasBody = !!document.body;

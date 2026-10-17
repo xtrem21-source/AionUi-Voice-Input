@@ -3,6 +3,29 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [2.1.5] — 2026-10-17
+
+### Fixed
+- **Old AionUi conversation threads: the mic sat on the send arrow.** In an old thread the
+  send arrow is wrapped in `span.sendbox-send-tooltip-anchor` (32 px, `overflow:hidden`).
+  The mic was inserted *inside* that wrapper, overflowed it, and appeared on top of the
+  arrow (and could drift right after a message was sent). `anchorTarget()` now climbs
+  narrow wrappers and inserts the mic **after** the wrapper, inside the real
+  `sendbox-actions` row. New chats keep the existing `_actionSubmit` placement.
+- **Narrow action bar:** when the bar is narrower than 80 px (old thread at 600 px), there is
+  no room inline. The mic now floats **6 px above the send arrow** (`position:fixed`,
+  appended to `<body>` so the composer's `z-10` stacking context and `overflow:hidden` cannot
+  cover it), and returns inline when the bar widens. Resize is re-evaluated 250 ms after the
+  event so the React layout has settled.
+
+### Verified
+- Old thread `b97449c5`, 1579×940: mic parent = `sendbox-actions`, 12 px gap (desktop
+  composer); 600×600 narrow/mobile composer: mic fixed at `(537–569, 505–537)`, send at
+  `(537–569, 543–575)` → 6 px above, no overlap, `elementFromPoint` = mic.
+- Send button enabled/disabled, new chat ↔ old thread switching, resize 600 ↔ 1579: mic
+  stays clickable and never overlaps the send arrow.
+- `node --check` on the source and the asar-extracted script, SHA-256 source = asar.
+
 ## [2.1.4] — 2026-10-17
 
 ### Fixed

@@ -221,3 +221,52 @@ Select-String "$env:APPDATA\AionUi\logs\2026\10\17\2026-10-17.log" -Pattern 'unr
 cliquer sur « Tester la clé Gemini » (le résultat s'affiche dans le panneau), puis dicter.
 Le modèle par défaut `gemini-3.5-flash-lite` n'a pas pu être validé sans clé ; si le test
 répond « model not found », changer le modèle dans le panneau (par exemple `gemini-2.5-flash`).
+
+---
+
+## 10. Suivi du 2026-10-17 (2.1.5) — ancrage dans les anciens fils
+
+### Symptôme
+
+Dans un **fil de discussion existant**, le micro se superposait presque au bouton d'envoi ;
+après l'envoi d'un message, il pouvait se retrouver tout à droite de la fenêtre. Dans un
+**chat vierge**, tout était correct.
+
+### Cause
+
+La structure du composeur diffère selon la vue :
+
+| Vue | Parent du bouton d'envoi | Largeur | Conséquence |
+|---|---|---|---|
+| Chat vierge | `div._actionSubmit` (barre d'actions complète) | ~376 px | insertion correcte à droite de la flèche |
+| Ancien fil | `span.sendbox-send-tooltip-anchor` (wrapper tooltip, `overflow:hidden`) | **32 px** | le micro était inséré **dans** ce wrapper, débordait et recouvrait la flèche ; le wrapper ne réservait pas sa place |
+
+### Correctif
+
+`anchorTarget(submit)` remonte les enveloppes de moins de 48 px dont le parent est plus large
+et renvoie `{ group, after }` : le micro est inséré **après le wrapper tooltip**, dans
+`div.sendbox-actions`. Le test « bien placé » du `MutationObserver` utilise la même cible, donc
+le micro ne repart plus dans le wrapper au re-rendu.
+
+Quand la barre d'actions est **trop étroite** (ancien fil en 600 px : 32 px seulement), il n'y a
+pas la place à côté. Le micro flotte alors **6 px au-dessus de la flèche** en `position:fixed`,
+**déplacé dans `<body>`** pour échapper au contexte d'empilement `z-10` du composeur et à son
+`overflow:hidden` (sinon le contenu du chat passait au-dessus et le rendait incliquable).
+Il repasse inline dès que la barre a la place ; le redimensionnement est ré-évalué 250 ms
+après l'événement pour laisser le layout React se stabiliser.
+
+### Vérifications
+
+| Contexte | Résultat |
+|---|---|
+| Ancien fil `b97449c5`, 1579×940, composeur desktop | parent du micro = `sendbox-actions`, micro à droite de la flèche, écart 12 px |
+| Ancien fil, 1000×800 | même parent, écart 12 px, `elementFromPoint` au centre = micro |
+| Ancien fil, 600×600, composeur étroit | micro `position:fixed`, parent `BODY`, boîte `(537–569, 505–537)`, flèche `(537–569, 543–575)` → **6 px au-dessus**, aucun chevauchement, `elementFromPoint` = micro |
+| Redimensionnement 600 ↔ 1579 | le micro reste cliquable, au-dessus ou à droite selon la place |
+| Bouton d'envoi désactivé puis activé (texte saisi) | le micro reste dans `sendbox-actions`, écart 12 px |
+| Passage chat vierge ↔ ancien fil | `_actionSubmit` ↔ `sendbox-actions`, ré-ancrage correct |
+| Journal AionUi | 0 `Renderer became unresponsive`, 0 `render-process-gone` |
+
+> Limite de la vérification : je n'ai **pas envoyé** de message réel dans le fil (pour ne pas
+> polluer la conversation) ; le changement d'état envoi activé/désactivé et les changements de
+> vue couvrent la réorganisation du DOM observée.
