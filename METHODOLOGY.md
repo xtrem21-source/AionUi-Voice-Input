@@ -191,6 +191,21 @@ npx --yes @electron/asar pack $tmp "$env:TEMP\app.asar.new"
 Copy-Item "$env:TEMP\app.asar.new" $asar
 ```
 
+> ⚠️ **`resources\app.asar.unpacked` — never fold it into the archive.**
+> `extract` materialises the files that were marked *unpacked* inside `$tmp`, and a plain
+> `pack` then embeds them. On AionUi that grew the archive from **313 MB to 363 MB** and moved
+> native modules (`.node`) inside the asar. Either use `scripts/apply-patch.ps1` (it rebuilds
+> the same split), or pass the patterns explicitly:
+>
+> ```powershell
+> npx --yes @electron/asar pack $tmp "$env:TEMP\app.asar.new" `
+>   --unpack-dir "{node_modules/better-sqlite3,node_modules/jszip,...}" `
+>   --unpack "{**/out/main/builtin-mcp-browser.js,**/out/main/builtin-mcp-image-gen.js}"
+> ```
+>
+> Then check that the file count under `app.asar.new.unpacked` matches the original
+> `app.asar.unpacked`, and **abort** if the archive grows by more than the injected script.
+
 ### B. Unpacked app (`resources\app\`) — the easy path
 
 If `resources\app\` exists as a folder, **do not repack anything**:
@@ -230,6 +245,24 @@ const SEND_SELECTOR =
 ```
 
 > Locate it in the app's DevTools: right-click the arrow → *Inspect*.
+
+> ### 🧨 Anchoring rule #2 — never anchor onto yourself
+>
+> Once the mic is inserted right after the send arrow, a "last visible button" heuristic
+> picks **the mic itself** as the send button. The module then detaches and reinserts the
+> anchor on every DOM mutation: ~**35,000 `MutationObserver` triggers in a few seconds**, a
+> frozen renderer, and a process that must be killed from Task Manager. That is exactly what
+> happened on AionUi 2.2.2.
+>
+> Rules:
+> 1. **Exclude the module's own nodes** (`#ocVoiceAnchor`, `#ocVoiceRoot`) from every button
+>    or input lookup.
+> 2. Never mutate the DOM synchronously inside the observer: debounce re-anchoring into a
+>    macrotask (e.g. `setTimeout(..., 80)`).
+> 3. After your own insertion, drop the records you caused: `observer.takeRecords()`.
+> 4. Score candidates (submit > primary > labelled send > circle > SVG) instead of taking the
+>    last button; the module's button is then naturally outranked *and* excluded.
+> 5. Ignore zero-height "phantom" textareas when locating the composer.
 
 > ### 🧷 Anchoring rule — learned the hard way
 >

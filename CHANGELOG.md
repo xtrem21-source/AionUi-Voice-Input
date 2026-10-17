@@ -3,6 +3,58 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [2.1.4] — 2026-10-17
+
+### Fixed
+- **The "Tester la clé Gemini" button did nothing.** It now sends a real (tiny)
+  `generateContent` request with the key typed in the panel (or the stored one) and the
+  configured model, then reports the exact API answer in the panel: valid key, invalid key,
+  unknown model, or network/CORS failure.
+- **The "no API key" error was invisible.** The error bubble was immediately hidden by the
+  settings panel that opened right after it. The explanation is now written in the panel's
+  status, and the key field is focused.
+- **Stop-recording / double-start.** A second click while `getUserMedia` is pending no longer
+  starts a second recorder; the button state flips immediately when stopping; and
+  `finishRecording` is guarded so a recording can never be transcribed twice.
+- **Gemini requests could stay "busy" forever.** Transcription now aborts after **45 s** and
+  the key test after **15 s**, with an explicit "délai dépassé" message; the button is
+  released instead of staying disabled.
+- **The settings panel could open off-screen in a short window.** At 600×600 the key input
+  was above the viewport (the panel started at `top: -219 px`), so the user only saw its
+  lower part — including the Google link. The panel is now displayed before being measured,
+  capped to `calc(100vh - 24px)` with scrolling, and shifted down when it would overflow.
+- **Mic too close to the send arrow.** The mic is now 32×32 like the send button, with a
+  14 px gap (was 36×36 with a 6 px gap), so it no longer looks glued to/over the send arrow.
+
+### Changed
+- The panel no longer claims it can reuse a key configured in Open Cowork: AionUi does not
+  expose that configuration, so the key must be pasted in the panel.
+- Script internal version v4; the incident report has a follow-up section.
+
+## [2.1.3] — 2026-10-17
+
+### Fixed
+- **AionUi renderer freeze (must be killed from Task Manager).** The AionUi variant picks
+  the send arrow heuristically (no `<form>`). `findSubmitButton()` also matched the mic
+  button that the module had just inserted; the anchor was then detached and reinserted on
+  every DOM mutation, producing ~35,000 `MutationObserver` triggers in a few seconds and an
+  unresponsive window. Fix: module-owned nodes are excluded, re-anchoring is debounced
+  (80 ms macrotask), the module's own mutation records are discarded, and zero-height
+  phantom `<textarea>` elements are ignored.
+- **`app.asar.unpacked` was folded into `app.asar`** (+48.7 MB): after extraction, a plain
+  repack embedded every unpacked file. The script now rebuilds the same split
+  (`--unpack-dir` for `node_modules` packages, `--unpack` for loose files), verifies the
+  unpacked file count and aborts if the archive grows unexpectedly.
+
+### Changed
+- Re-applying over an existing patch (`-Force`, `REAPPLIQUER-MIC-AIONUI.bat`) now reads only
+  the asar header to detect `voice-input.js`, instead of loading the whole 300 MB archive
+  into memory.
+- AionUi is now listed as tested on Windows (2.2.2), anchored directly next to the Arco
+  send button.
+- Detailed incident report (diagnosis, evidence, verification, rollback):
+  [`docs/INCIDENT-2026-10-17-AIONUI-FREEZE.md`](docs/INCIDENT-2026-10-17-AIONUI-FREEZE.md).
+
 ## [2.1.2] — 2026-10-17
 
 ### Fixed

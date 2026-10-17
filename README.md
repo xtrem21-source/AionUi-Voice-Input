@@ -87,8 +87,9 @@ already patched — use `-Force` to reinstall over an existing patch.
 ### 3. Relaunch and configure
 
 - A **mic button** appears next to the send arrow
-- **Right-click it** → the settings gear appears
+- **Right-click it** → the settings panel opens (key, model, language, auto-send)
 - Paste your **Gemini API key**, choose the model and language, toggle auto-send
+- Click **Tester la clé Gemini** to validate the key *and* the model before dictating
 
 > Get a free key at [Google AI Studio](https://aistudio.google.com/apikey).
 
@@ -99,7 +100,7 @@ already patched — use `-Force` to reinstall over an existing patch.
 | App | Layout | Script path | Status |
 |---|---|---|---|
 | **Open Cowork** | Vite | `dist/voice-input.js` | ✅ tested, works |
-| **AionUi** | electron-vite | `out/renderer/voice-input.js` | 🧪 patch ready, anchor to validate |
+| **AionUi** | electron-vite | `out/renderer/voice-input.js` | ✅ tested on Windows (AionUi 2.2.2) |
 | **Cline Desktop** | asar | to be mapped | 🟡 reported working by the author, unverified |
 
 > **~8 out of 10 — not 100%.** Electron chat apps differ in their composer and their send
@@ -142,6 +143,7 @@ src/voice-input.js      the injectable script (~45 KB, zero dependencies)
 scripts/apply-patch.*   safe asar patchers (Windows / macOS-Linux)
 docs/HOW-IT-WORKS.md    architecture, DOM anchoring, React compatibility
 docs/SUPPORTED-APPS.md  per-app paths, selectors, expected success rate
+docs/INCIDENT-2026-10-17-AIONUI-FREEZE.md  incident report: renderer freeze, diagnosis, fix
 ```
 
 ---

@@ -81,8 +81,9 @@ ouverte ou déjà patchée.
 ### 3. Relancer et configurer
 
 - Un **bouton micro** apparaît à côté de la flèche d'envoi
-- **Clic droit** dessus → la roue dentée apparaît
+- **Clic droit** dessus → le panneau de réglages s'ouvre (clé, modèle, langue, envoi auto)
 - Collez votre **clé API Gemini**, choisissez le modèle et la langue, activez ou non l'envoi auto
+- Cliquez sur **Tester la clé Gemini** pour valider la clé **et** le modèle avant de dicter
 
 > Clé gratuite : [Google AI Studio](https://aistudio.google.com/apikey).
 
@@ -93,7 +94,7 @@ ouverte ou déjà patchée.
 | Application | Chemin du script | État |
 |---|---|---|
 | **Open Cowork** | `dist/voice-input.js` | ✅ testé, fonctionne |
-| **AionUi** | `out/renderer/voice-input.js` | 🧪 correctif prêt, ancrage à valider |
+| **AionUi** | `out/renderer/voice-input.js` | ✅ testé sous Windows (AionUi 2.2.2) |
 | **Cline Desktop** | à cartographier | 🟡 signalé fonctionnel par l'auteur, non vérifié |
 
 > **~8 sur 10 — pas 100 %.** Les applications Electron diffèrent par leur zone de saisie et
@@ -123,6 +124,10 @@ Voir [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
 | **Patcher reste un contournement** | Recompresser une archive est fragile par nature. Un `.bak` est toujours créé. |
 | **Ancrage propre à chaque app** | Le bouton cherche un bouton d'envoi ; sinon il devient flottant. |
 | **Quota Gemini** | Le palier gratuit a des limites de débit. |
+
+> 🔎 **Rapport d'incident** — gel du renderer AionUi du 2026-10-17 (diagnostic, preuves,
+> correctifs, vérifications, retour arrière) :
+> [`docs/INCIDENT-2026-10-17-AIONUI-FREEZE.md`](docs/INCIDENT-2026-10-17-AIONUI-FREEZE.md).
 
 ---
 

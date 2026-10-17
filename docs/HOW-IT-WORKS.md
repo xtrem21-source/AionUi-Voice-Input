@@ -58,12 +58,21 @@ The button is meant to sit **immediately to the right of the send arrow**.
 1. find a visible <textarea> inside a <form> that has button[type=submit]   ← preferred
 2. otherwise: visible <textarea> with rows="1" and a message-like placeholder
 3. otherwise: the last visible <textarea> on the page
+   (zero-height "phantom" textareas are ignored)
+   → score the composer's buttons: submit > primary > labelled send > circle > SVG
+   → ignore the module's own nodes (#ocVoiceAnchor, #ocVoiceRoot)
    → attach the button as a sibling of the send button (same flex container)
    → if no send button: fall back to a floating button (position: fixed)
 ```
 
-A `MutationObserver` watches the app root and re-mounts the button when the UI re-renders.
-A `getElementById` guard prevents duplicates.
+A `MutationObserver` watches `document.body` and schedules a **debounced** re-mount when the
+UI re-renders; the module's own mutations are discarded with `takeRecords()`. A
+`getElementById` guard prevents duplicates.
+
+> 🧨 **Never let the module anchor onto its own button.** If the send-button lookup includes
+> the mic that was just inserted, the anchor is detached and reinserted on every mutation.
+> On AionUi 2.2.2 that produced ~35,000 observer triggers in a few seconds and froze the
+> renderer. Excluding own nodes + debouncing + `takeRecords()` is what keeps it stable.
 
 > 🧷 **Why the button must stay inside the composer.** A button living in the composer's DOM
 > follows every layout change (window resize, zoom, sidebar toggle). A `position:fixed`

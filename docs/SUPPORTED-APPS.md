@@ -6,7 +6,7 @@ drop the script. All the DOM logic is identical.
 | App | Install dir | HTML inside asar | Script inside asar | Anchor | Status |
 |---|---|---|---|---|---|
 | **Open Cowork** | `%LOCALAPPDATA%\Programs\Open Cowork` | `dist/index.html` | `dist/voice-input.js` | `button[type=submit]` (send arrow) | ✅ tested, works |
-| **AionUi** | `%LOCALAPPDATA%\Programs\AionUi` | `out/renderer/index.html` | `out/renderer/voice-input.js` | Arco/React: send button is likely `type="button"` → **floating fallback** | 🧪 patch ready, anchor to validate |
+| **AionUi** | `%LOCALAPPDATA%\Programs\AionUi` | `out/renderer/index.html` | `out/renderer/voice-input.js` | Arco/React: primary circular `send-button-custom` button, no `<form>` — picked by the scoring heuristic | ✅ tested on Windows (AionUi 2.2.2) |
 | **Cline Desktop** | *to be mapped* (GUI build, asar) | *to be mapped* | *to be mapped* | *unknown* | 🟡 reported working by the author, unverified |
 
 > **Cline Desktop note.** Cline ships a **built-in voice option backed by a paid subscription**
@@ -39,16 +39,20 @@ placement is off. That is why the method ships with a fallback instead of a hard
 ## AionUi
 
 - Layout: electron-vite, renderer under `out/renderer/`
-- Composer: **Arco Design** `Input.TextArea` → renders `<textarea class="arco-textarea">`,
-  controlled by React (`autoSize`, `onKeyDown` handlers)
+- Composer: **Arco Design** `Input.TextArea` → renders a `<textarea>`, controlled by React
+  (`autoSize`, `onKeyDown` handlers)
 - **No CSP meta tag** in `out/renderer/index.html` → local scripts are allowed
-- ⚠️ The send control is an icon button, probably **`type="button"`**, so step 1 of the anchor
-  algorithm will fail and the button will fall back to *floating*. Fix by extending the selector:
+- Send control: a primary circular `<button class="arco-btn arco-btn-primary ... send-button-custom">`
+  inside `_actionSubmit_...`, with **no `<form>`**. `findSubmitButton()` scores the buttons of
+  the composer (submit > primary > labelled send > circle > SVG) and **excludes the module's
+  own nodes**, so the mic can never be mistaken for the send arrow.
+- Tested on Windows, AionUi 2.2.2 (2026-10-17): the mic sits immediately to the right of the
+  send arrow, the settings panel opens on right-click, and the renderer stays responsive
+  (no `Renderer became unresponsive` in the app log).
 
-```js
-const SEND_SELECTOR =
-  'button[type=submit], button[class*="send"], button[aria-label*="envoy"], button[aria-label*="send"]';
-```
+> ⚠️ AionUi ships a large `resources/app.asar.unpacked` (~61 MB of native modules and
+> helper scripts). Any repack must preserve it: `apply-patch.ps1` rebuilds the same split
+> with `--unpack-dir` / `--unpack` and aborts if the archive unexpectedly grows.
 
 ---
 

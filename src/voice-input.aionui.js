@@ -1,9 +1,20 @@
-/* open-cowork-voice-input v2 — saisie vocale (transcription Gemini) pour Open Cowork
+/* open-cowork-voice-input v4 — saisie vocale (transcription Gemini) pour AionUi
  * Ajoute un bouton micro ancré DANS la barre de saisie du chat (il suit donc le
  * redimensionnement et le déplacement de la fenêtre) : enregistre votre voix,
  * l'envoie à l'API Gemini pour transcription, puis insère le texte dans le champ de saisie.
  * Aucune dépendance, aucun paquet à installer. La clé API reste en local (localStorage).
  *
+ * v4 : le bouton "Tester la clé Gemini" fonctionne réellement (validation de la clé
+ *      ET du modèle, message d'erreur dans le panneau) ; l'absence de clé est
+ *      expliquée dans le panneau au lieu d'être masquée par lui ; arrêt
+ *      d'enregistrement plus robuste (état immédiat, anti double-démarrage,
+ *      anti double-transcription) ; délai maximal sur les appels Gemini ;
+ *      panneau de réglages toujours visible (fenêtres basses) ;
+ *      micro légèrement séparé de la flèche d'envoi.
+ * v3 : correctif du gel du renderer AionUi — le bouton micro n'est plus jamais
+ *      confondu avec la flèche d'envoi (isOwnNode), le re-ancrage est débouncé
+ *      (macrotask) et les mutations provoquées par le module sont ignorées ;
+ *      les textarea fantômes (hauteur 0) sont écartés.
  * v2 : bouton ancré dans le conteneur du champ de saisie (au lieu de position:fixed) ;
  *      modèle par défaut mis à jour (gemini-3.5-flash-lite) ;
  *      réinsertion automatique via MutationObserver après réaffichage React ;
@@ -12,7 +23,7 @@
 (function () {
   'use strict';
   if (window.__ocVoice) return;
-  window.__ocVoice = { version: 2 };
+  window.__ocVoice = { version: 4 };
 
   var LS = {
     key: 'ocVoice.geminiKey',
@@ -74,7 +85,12 @@
     ui: null,
     anchored: false,     // true si le bouton est inséré dans la barre de saisie
     overlayParent: null, // parent utilisé pour le repli (position:fixed)
-    observer: null
+    observer: null,
+    anchoring: false,    // garde de réentrance (MutationObserver -> mountAnchored)
+    scheduled: false,    // re-ancrage déjà planifié (debounce)
+    anchorLogged: false, // n'écrire le résultat de l'ancrage qu'une fois
+    starting: false,     // getUserMedia en cours (évite deux enregistreurs)
+    finishing: false     // finishRecording déjà lancé (évite une double transcription)
   };
 
   // Journalisation double : console du renderer + fichier de logs de l'application
@@ -142,10 +158,11 @@
       '#ocVoiceRoot{position:fixed;z-index:2147483000;display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-family:inherit}' +
       '#ocVoiceRoot *{box-sizing:border-box}' +
       // bouton ancre dans la barre de saisie, JUSTE A DROITE de la fleche d'envoi.
-      // Il respecte le flex du groupe (align-items:center) et la taille w-9 h-9.
-      '#ocVoiceAnchor{display:inline-flex;align-items:center;justify-content:center;margin:0;flex:0 0 auto}' +
-      '#ocVoiceAnchor .ocv-btn{width:36px;height:36px}' +
-      '#ocVoiceAnchor .ocv-btn svg{width:17px;height:17px}' +
+      // Il respecte le flex du groupe (align-items:center) et reste separe de la
+      // fleche par une marge visible (le parent a deja un gap de 6 px).
+      '#ocVoiceAnchor{display:inline-flex;align-items:center;justify-content:center;margin:0 0 0 8px;flex:0 0 auto}' +
+      '#ocVoiceAnchor .ocv-btn{width:32px;height:32px}' +
+      '#ocVoiceAnchor .ocv-btn svg{width:16px;height:16px}' +
       '.ocv-btn{width:44px;height:44px;border-radius:9999px;border:1px solid var(--color-border, #34302a);' +
       'background:var(--color-surface, #22201d);color:var(--color-text-primary, #f1ece4);display:flex;align-items:center;' +
       'justify-content:center;cursor:pointer;box-shadow:var(--shadow-elevated, 0 8px 24px rgba(0,0,0,.34));' +
@@ -172,7 +189,8 @@
       '@keyframes ocvSpin{to{transform:rotate(360deg)}}' +
       '@keyframes ocvPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.55)}50%{box-shadow:0 0 0 10px rgba(239,68,68,0)}}' +
       '.ocv-panel{width:326px;padding:14px;border-radius:16px;background:var(--color-background-secondary, #1d1b18);' +
-      'border:1px solid var(--color-border, #34302a);box-shadow:var(--shadow-elevated, 0 8px 24px rgba(0,0,0,.34));display:none}' +
+      'border:1px solid var(--color-border, #34302a);box-shadow:var(--shadow-elevated, 0 8px 24px rgba(0,0,0,.34));display:none;' +
+      'max-height:calc(100vh - 24px);overflow-y:auto}' +
       '.ocv-panel h4{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--color-text-primary, #f1ece4)}' +
       '.ocv-panel label{display:block;font-size:11px;color:var(--color-text-muted, #8c8378);margin:9px 0 4px}' +
       '.ocv-panel input[type=text],.ocv-panel input[type=password],.ocv-panel select{width:100%;padding:7px 9px;font-size:12px;' +
@@ -212,7 +230,7 @@
       '<h4>Saisie vocale</h4>' +
       '<label>Clé API Gemini</label>' +
       '<input type="password" id="ocvKey" placeholder="AIza..." autocomplete="off" spellcheck="false">' +
-      '<div class="ocv-hint">Laissez vide pour utiliser la clé Gemini déjà configurée dans Open Cowork.<br>' +
+      '<div class="ocv-hint">AionUi ne détecte pas automatiquement de clé Gemini : collez la vôtre ci-dessus.<br>' +
       'Clé gratuite sur <a id="ocvKeyLink">aistudio.google.com/apikey</a> — stockée uniquement sur cet ordinateur.</div>' +
       '<label>Modèle de transcription</label>' +
       '<input type="text" id="ocvModel" placeholder="' + DEFAULT_MODEL + '" spellcheck="false">' +
@@ -285,6 +303,10 @@
     if (!st.observer && document.body) {
       var obsRetries = 0;
       st.observer = new MutationObserver(function () {
+        // Jamais de modification du DOM ici : on planifie un re-ancrage
+        // (macrotask debouncee). Une boucle synchrone observer -> DOM ->
+        // observer gelait le renderer d'AionUi.
+        if (st.anchoring || st.scheduled) return;
         // sortir seulement si notre ancre est REELLEMENT connectee au DOM
         // ET toujours placee juste apres la fleche d'envoi.
         var el = document.getElementById('ocVoiceAnchor');
@@ -298,7 +320,11 @@
         if (obsRetries === 1 || obsRetries % 20 === 0) {
           log('MutationObserver: reancrage (declenchement n°' + obsRetries + ', ancre connectee=' + !!(el && el.isConnected) + ')');
         }
-        mountAnchored();
+        st.scheduled = true;
+        setTimeout(function () {
+          st.scheduled = false;
+          mountAnchored();
+        }, 80);
       });
       st.observer.observe(document.body, { childList: true, subtree: true });
       log('MutationObserver actif (surveillance des re-rendus React)');
@@ -306,7 +332,11 @@
 
     // Roue masquee : plus d'ecouteur de clic (les reglages s'ouvrent par clic droit sur le micro).
     panel.querySelector('#ocvSave').addEventListener('click', saveSettings);
-    panel.querySelector('#ocvClose').addEventListener('click', function () { panel.style.display = 'none'; });
+    panel.querySelector('#ocvTest').addEventListener('click', testGeminiKey);
+    panel.querySelector('#ocvClose').addEventListener('click', function () {
+      panel.style.display = 'none';
+      positionOverlay(st.ui.root);
+    });
     panel.querySelector('#ocvKeyLink').addEventListener('click', function () {
       try {
         if (window.electronAPI && window.electronAPI.openExternal) {
@@ -317,7 +347,10 @@
       } catch (e) {}
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && panel.style.display === 'block') panel.style.display = 'none';
+      if (e.key === 'Escape' && panel.style.display === 'block') {
+        panel.style.display = 'none';
+        positionOverlay(st.ui.root);
+      }
     });
     window.addEventListener('resize', function () { positionOverlay(root); });
     // Si la barre de saisie bouge (scroll interne du chat), le panneau doit suivre.
@@ -337,6 +370,7 @@
         root.style.left = 'auto';
         root.style.bottom = Math.max(8, window.innerHeight - r.top + 8) + 'px';
         root.style.top = 'auto';
+        ensurePanelVisible(root);
         return;
       }
       // 2) Bouton flottant : NE PAS se caler sur le bouton (il est lui-meme dans le
@@ -349,6 +383,7 @@
         root.style.left = 'auto';
         root.style.bottom = Math.max(8, window.innerHeight - ar.top + 10) + 'px';
         root.style.top = 'auto';
+        ensurePanelVisible(root);
         return;
       }
     } catch (e) {}
@@ -356,6 +391,7 @@
     root.style.left = 'auto';
     root.style.bottom = '112px';
     root.style.top = 'auto';
+    ensurePanelVisible(root);
   }
 
   // ---------------------------------------------------------------------------
@@ -364,48 +400,92 @@
   //  naturellement la barre et le redimensionnement de la fenetre.
   // ---------------------------------------------------------------------------
 
+  // Nos propres elements ne doivent JAMAIS etre pris pour la fleche d'envoi :
+  // sinon findSubmitButton renvoyait notre propre micro, l'ancre etait retiree
+  // puis reinseree a chaque mutation -> boucle infinie, renderer gele.
+  function isOwnNode(el) {
+    return !!(el && el.closest && el.closest('#ocVoiceAnchor, #ocVoiceRoot'));
+  }
+
+  // Note un bouton : fleche d'envoi = submit, ou bouton primaire circulaire,
+  // ou libelle "send/envoyer/...". Le dernier bouton visible de la barre
+  // (ancienne heuristique) pouvait etre le notre.
+  function buttonScore(btn) {
+    var score = 0;
+    var cls = typeof btn.className === 'string' ? btn.className : '';
+    var label = String(btn.getAttribute('aria-label') || '') + ' ' + String(btn.getAttribute('title') || '');
+    if (btn.getAttribute('type') === 'submit') score += 4;
+    if (/primary/i.test(cls)) score += 3;
+    if (/send|envoy|submit|发送|送信|enviar/i.test(label)) score += 2;
+    if (/circle|round/i.test(cls)) score += 1;
+    if (btn.querySelector('svg')) score += 1;
+    return score;
+  }
+
   // Trouve le bouton d'envoi (fleche) de la barre de saisie.
   // 1) cas standard : button[type=submit] dans le <form> qui contient le textarea.
-  // 2) cas AionUi / React sans <form> : dernier bouton visible de la barre de saisie
-  //    (recherche en remontant depuis le textarea, profondeur max 5).
+  // 2) cas AionUi / React sans <form> : on note les boutons de la barre de saisie
+  //    (recherche en remontant depuis le textarea, profondeur max 5) et on prend
+  //    le meilleur candidat, en excluant toujours notre propre micro.
   function findSubmitButton() {
     var area = findInput();
     if (!area) return null;
     var form = area.closest && area.closest('form');
     if (form) {
       var b = form.querySelector('button[type="submit"]');
-      if (b) return b;
+      if (b && !isOwnNode(b)) return b;
     }
     var scope = area.parentElement;
     for (var d = 0; d < 5 && scope; d++, scope = scope.parentElement) {
       var btns = scope.querySelectorAll('button');
+      var best = null;
+      var bestScore = -1;
       for (var i = btns.length - 1; i >= 0; i--) {
         var btn = btns[i];
+        if (isOwnNode(btn)) continue;
         var r = btn.getBoundingClientRect();
-        if (r.width > 8 && r.height > 8 && !btn.disabled) return btn;
+        if (r.width <= 8 || r.height <= 8) continue;
+        // ne pas exclure les boutons desactives : la fleche d'envoi l'est
+        // quand le champ est vide, et c'est quand meme elle qu'on doit suivre.
+        var s = buttonScore(btn);
+        if (s > bestScore) { best = btn; bestScore = s; }
       }
+      if (best) return best;
     }
     return null;
   }
 
   /** Insère le micro JUSTE A DROITE de la fleche d'envoi ; repli flottant sinon. */
   function mountAnchored() {
-    if (!st.ui) { log('mountAnchored: st.ui absent, abandon'); return; }
+    if (!st.ui || st.anchoring) return;
     var anchor = st.ui.anchor;
     // eviter les doublons eventuels
     var dup = document.getElementById('ocVoiceAnchor');
     if (dup && dup !== anchor) dup.remove();
 
     var submit = findSubmitButton();
-    log('mountAnchored: fleche envoi=' + (submit ? 'TROUVEE' : 'INTROUVABLE'));
+    // defense en profondeur : ne jamais s'ancrer sur soi-meme
+    if (submit && (submit === st.ui.btn || anchor.contains(submit))) submit = null;
     if (submit && submit.parentElement) {
       var group = submit.parentElement; // le groupe de droite (flex items-center gap-2)
       // deja place juste apres la fleche ? rien a faire.
-      if (st.anchored && anchor.isConnected && submit.nextElementSibling === anchor) return;
-      // insérer immédiatement APRES le bouton d'envoi
-      try { anchor.remove(); } catch (e) {}
-      if (submit.nextSibling) group.insertBefore(anchor, submit.nextSibling);
-      else group.appendChild(anchor);
+      if (st.anchored && anchor.parentNode === group && submit.nextElementSibling === anchor) {
+        positionOverlay(st.ui.root);
+        return;
+      }
+      st.anchoring = true;
+      try {
+        try { anchor.remove(); } catch (e) {}
+        if (submit.nextSibling) group.insertBefore(anchor, submit.nextSibling);
+        else group.appendChild(anchor);
+        // ignorer les mutations que l'on vient de provoquer nous-memes
+        if (st.observer) { try { st.observer.takeRecords(); } catch (e) {} }
+      } catch (e) {
+        logErr('mountAnchored: insertion impossible', e);
+        st.anchoring = false;
+        return;
+      }
+      st.anchoring = false;
       st.anchored = true;
       hideAnchor(false);
       positionOverlay(st.ui.root);
@@ -423,7 +503,7 @@
         st.ui.btn.style.position = 'absolute';
         st.ui.btn.style.right = '0';
         st.ui.btn.style.bottom = 'calc(100% + 6px)';
-        logWarn('ancrage: champ etroit (' + Math.round(avail) + 'px) -> micro AU-DESSUS de la fleche');
+        if (!st.anchorLogged) logWarn('ancrage: champ etroit (' + Math.round(avail) + 'px) -> micro AU-DESSUS de la fleche');
       } else {
         anchor.style.position = '';
         anchor.style.width = '';
@@ -431,8 +511,9 @@
         st.ui.btn.style.position = '';
         st.ui.btn.style.right = '';
         st.ui.btn.style.bottom = '';
-        logWarn('ancrage REUSSI (juste a droite de la fleche d\'envoi)');
+        if (!st.anchorLogged) logWarn('ancrage REUSSI (juste a droite de la fleche d\'envoi)');
       }
+      st.anchorLogged = true;
       return;
     }
     // Pas de barre de saisie (ecran d'accueil, autre vue...) : on MASQUE le micro
@@ -440,7 +521,9 @@
     if (st.anchored) {
       log('mountAnchored: plus de fleche -> bouton masque (sorti de la barre)');
       try { anchor.remove(); } catch (e) {}
+      if (st.observer) { try { st.observer.takeRecords(); } catch (e) {} }
       st.anchored = false;
+      st.anchorLogged = false;
     }
     hideAnchor(true);
   }
@@ -456,28 +539,121 @@
     var ui = ensureUi();
     if (ui.panel.style.display === 'block') {
       ui.panel.style.display = 'none';
+      positionOverlay(ui.root);
       return;
     }
+    showPanel();
+  }
+
+  function showPanel() {
+    var ui = ensureUi();
     ui.panel.querySelector('#ocvKey').value = ls(LS.key, '');
     ui.panel.querySelector('#ocvModel').value = resolveModel();
     ui.panel.querySelector('#ocvLang').value = ls(LS.lang, 'fr');
     ui.panel.querySelector('#ocvAuto').checked = ls(LS.auto, '1') === '1';
     ui.panel.querySelector('#ocvSendKw').checked = ls(LS.sendKw, '0') === '1';
-    positionOverlay(ui.root);
+    var stored = ls(LS.key, '').trim();
+    setPanelStatus(
+      stored
+        ? 'Clé enregistrée (…' + stored.slice(-4) + '). Cliquez sur « Tester la clé Gemini ».'
+        : 'Aucune clé enregistrée : la dictée ne peut pas transcrire. Collez votre clé Gemini, puis cliquez sur « Enregistrer ».',
+      stored ? 'ok' : 'error'
+    );
+    // Afficher AVANT de positionner : sinon la hauteur du panneau vaut 0 et
+    // il peut sortir par le haut de la fenetre (champ de cle invisible).
     ui.panel.style.display = 'block';
     ui.bubble.style.display = 'none';
+    positionOverlay(ui.root);
+    ensurePanelVisible(ui.root);
+  }
+
+  // Si le panneau ne tient pas au-dessus du micro, le decaler vers le bas pour
+  // que le champ de cle soit toujours visible (fenetres basses, 600x600...).
+  function ensurePanelVisible(root) {
+    var ui = st.ui;
+    if (!ui || !ui.panel || ui.panel.style.display !== 'block') return;
+    var pr = ui.panel.getBoundingClientRect();
+    if (pr.top < 8) {
+      var bottom = Math.max(8, window.innerHeight - pr.height - 8);
+      root.style.top = 'auto';
+      root.style.bottom = bottom + 'px';
+    }
+  }
+
+  function setPanelStatus(text, kind) {
+    var ui = ensureUi();
+    var el = ui.panel.querySelector('#ocvStatus');
+    if (!el) return;
+    el.textContent = text;
+    if (kind) el.setAttribute('data-kind', kind);
+    else el.removeAttribute('data-kind');
+  }
+
+  function testGeminiKey() {
+    var ui = ensureUi();
+    var typed = ui.panel.querySelector('#ocvKey').value.trim();
+    var key = typed || ls(LS.key, '').trim();
+    if (!key) {
+      setPanelStatus('Aucune clé saisie. Collez votre clé Gemini (AIza…), puis réessayez.', 'error');
+      try { ui.panel.querySelector('#ocvKey').focus(); } catch (e) {}
+      return;
+    }
+    var model = ui.panel.querySelector('#ocvModel').value.trim() || resolveModel();
+    var btn = ui.panel.querySelector('#ocvTest');
+    btn.disabled = true;
+    setPanelStatus('Test en cours… (' + model + ')');
+    var t0 = Date.now();
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) +
+      ':generateContent?key=' + encodeURIComponent(key);
+    fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: 'Réponds uniquement par OK.' }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 8 }
+      })
+    }, 15000).then(function (res) {
+      return res.json().catch(function () { return null; }).then(function (json) {
+        if (!res.ok) {
+          var detail = json && json.error && json.error.message ? json.error.message : 'HTTP ' + res.status;
+          var hint = /not found|not supported|does not exist|unknown model/i.test(detail)
+            ? ' — essayez un autre modèle (par exemple gemini-2.5-flash).' : '';
+          throw new Error(detail + hint);
+        }
+        var cand = json && json.candidates && json.candidates[0];
+        var parts = (cand && cand.content && cand.content.parts) || [];
+        var out = parts.map(function (p) { return p.text || ''; }).join('').trim();
+        if (!out) throw new Error('réponse vide du modèle (clé acceptée, mais le modèle n\'a rien renvoyé)');
+        setPanelStatus('Clé valide — ' + model + ' répond en ' + (Date.now() - t0) + ' ms : « ' + out.slice(0, 40) + ' »', 'ok');
+        log('test cle Gemini OK (' + model + ')');
+      });
+    }).catch(function (err) {
+      var msg = err && err.message ? err.message : String(err);
+      if (err && err.name === 'TypeError') msg = 'connexion à Gemini impossible (réseau ou CORS)';
+      setPanelStatus('Échec : ' + msg, 'error');
+      logErr('test cle Gemini ECHEC: ' + msg);
+    }).then(function () {
+      btn.disabled = false;
+    });
   }
 
   function saveSettings() {
     var ui = ensureUi();
-    setLs(LS.key, ui.panel.querySelector('#ocvKey').value.trim());
+    var key = ui.panel.querySelector('#ocvKey').value.trim();
+    setLs(LS.key, key);
     var model = ui.panel.querySelector('#ocvModel').value.trim() || DEFAULT_MODEL;
     setLs(LS.model, model);
     setLs(LS.lang, ui.panel.querySelector('#ocvLang').value);
     setLs(LS.auto, ui.panel.querySelector('#ocvAuto').checked ? '1' : '0');
     setLs(LS.sendKw, ui.panel.querySelector('#ocvSendKw').checked ? '1' : '0');
+    if (!key) {
+      setPanelStatus('Réglages enregistrés, mais aucune clé Gemini : la dictée échouera. Collez une clé puis Enregistrer.', 'error');
+      try { ui.panel.querySelector('#ocvKey').focus(); } catch (e) {}
+      return;
+    }
     ui.panel.style.display = 'none';
-    showBubble('Réglages enregistrés.', 'ok', 2500);
+    positionOverlay(ui.root);
+    showBubble('Réglages enregistrés. Cliquez sur le micro pour dicter.', 'ok', 3000);
   }
 
   var bubbleTimer = null;
@@ -504,22 +680,32 @@
   }
 
   function toggleRecording() {
-    if (st.busy) return;
+    if (st.busy || st.starting) return;
     if (st.recording) stopRecording(); else startRecording();
   }
 
   function startRecording() {
+    if (st.starting || st.recording) return;
+    st.starting = true;
     var ui = ensureUi();
     ui.panel.style.display = 'none';
+    positionOverlay(ui.root);
     log('startRecording: demande acces micro');
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      st.starting = false;
       logErr('startRecording: getUserMedia indisponible');
       showBubble("L'enregistrement audio n'est pas disponible dans cette fenêtre.", 'error', 8000);
       return;
     }
+    // liberer une eventuelle ressource precedente
+    if (st.stream) {
+      try { st.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+      st.stream = null;
+    }
     navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     }).then(function (stream) {
+      st.starting = false;
       st.stream = stream;
       var types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', ''];
       var chosen = '';
@@ -552,12 +738,13 @@
       showBubble('Enregistrement… 0 s', 'info');
       log('enregistrement démarré');
     }).catch(function (err) {
+      st.starting = false;
       st.stream = null;
       var name = err && err.name ? err.name : '';
       logErr('startRecording ECHEC: ' + name + ' - ' + (err && err.message ? err.message : ''));
       if (name === 'NotAllowedError' || name === 'SecurityError') {
         showBubble('Accès au microphone refusé.<br>Autorisez-le via Windows → Paramètres → Confidentialité et sécurité → ' +
-          'Microphone (applications de bureau), puis relancez Open Cowork.', 'error', 15000);
+          'Microphone (applications de bureau), puis relancez AionUi.', 'error', 15000);
       } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
         showBubble('Aucun microphone détecté sur cet ordinateur.', 'error', 12000);
       } else {
@@ -568,9 +755,20 @@
 
   function stopRecording() {
     if (st.tick) { clearInterval(st.tick); st.tick = null; }
+    // L'etat visuel bascule TOUT DE SUITE : l'utilisateur voit que le clic a ete pris.
+    st.recording = false;
+    setBtnState();
+    var rec = st.recorder;
+    if (!rec || rec.state === 'inactive') {
+      finishRecording();
+      return;
+    }
     try {
-      if (st.recorder && st.recorder.state !== 'inactive') st.recorder.stop();
-    } catch (e) { log('arrêt impossible', e); }
+      rec.stop();
+    } catch (e) {
+      log('arrêt impossible', e);
+      finishRecording();
+    }
   }
 
   /* ---------- transcription ---------- */
@@ -627,6 +825,8 @@
   }
 
   function finishRecording() {
+    if (st.finishing) return;
+    st.finishing = true;
     st.recording = false;
     setBtnState();
     if (st.stream) {
@@ -637,6 +837,7 @@
     var blob = new Blob(st.chunks || [], { type: mime });
     st.chunks = [];
     if (!blob.size) {
+      st.finishing = false;
       showBubble('Aucun son enregistré.', 'error', 6000);
       return;
     }
@@ -697,13 +898,16 @@
       var msg = err && err.message ? err.message : String(err);
       logErr('transcription ECHEC apres ' + (Date.now() - t0) + ' ms: ' + msg);
       if (msg === 'NO_KEY') {
-        showBubble('Aucune clé API Gemini.<br>Faites un clic DROIT sur le micro pour en enregistrer une ' +
-          '(ou configurez Gemini dans les réglages d\'Open Cowork).', 'error', 15000);
-        togglePanel();
+        // Le panneau REMPLACE la bulle : on ecrit donc l'explication dans son statut.
+        showPanel();
+        setPanelStatus('Aucune clé API Gemini : collez votre clé ci-dessus, puis cliquez sur « Enregistrer ».', 'error');
+        var kf = st.ui.panel.querySelector('#ocvKey');
+        try { kf.focus(); kf.select(); } catch (e) {}
       } else {
         showBubble('Échec de la transcription : ' + escapeHtml(msg), 'error', 15000);
       }
     }).then(function () {
+      st.finishing = false;
       st.busy = false;
       setBtnState();
     });
@@ -771,6 +975,26 @@
     });
   }
 
+  // fetch avec délai maximal : une requête Gemini qui ne répond pas ne doit pas
+  // laisser le bouton "busy" indéfiniment (l'utilisateur croit que c'est bloqué).
+  function fetchWithTimeout(url, options, timeoutMs) {
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = null;
+    if (ctrl) {
+      options = options || {};
+      options.signal = ctrl.signal;
+      timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, timeoutMs);
+    }
+    return fetch(url, options).then(function (res) {
+      if (timer) clearTimeout(timer);
+      return res;
+    }, function (err) {
+      if (timer) clearTimeout(timer);
+      if (err && err.name === 'AbortError') throw new Error('délai dépassé (' + Math.round(timeoutMs / 1000) + ' s) — vérifiez la connexion');
+      throw err;
+    });
+  }
+
   function transcribe(blob) {
     return resolveKey().then(function (key) {
       if (!key) { logErr('transcribe: aucune cle Gemini (localStorage ni config app)'); throw new Error('NO_KEY'); }
@@ -797,11 +1021,11 @@
             }],
             generationConfig: { temperature: 0, maxOutputTokens: 2048 }
           };
-          return fetch(url, {
+          return fetchWithTimeout(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
-          }).then(function (res) {
+          }, 45000).then(function (res) {
             return res.json().catch(function () { return null; }).then(function (json) {
               if (!res.ok) {
                 var detail = json && json.error && json.error.message ? json.error.message : 'HTTP ' + res.status;
@@ -824,7 +1048,11 @@
 
   /* ---------- insertion dans le champ de saisie du chat ---------- */
   function isVisible(el) {
-    return !!(el && el.offsetParent !== null && !el.disabled && !el.readOnly);
+    if (!el || el.disabled || el.readOnly || el.offsetParent === null) return false;
+    // Un textarea "fantome" (hauteur 0, hors flux) ne doit pas etre choisi :
+    // il faisait perdre l'ancrage a AionUi.
+    var r = el.getBoundingClientRect();
+    return r.width > 8 && r.height > 8;
   }
 
   // Le champ de saisie du chat est un <textarea> situe DANS un <form> qui
@@ -944,7 +1172,7 @@
 
   /* ---------- démarrage ---------- */
   var tries = 0;
-  var VERSION = 2;
+  var VERSION = 4;
   function init() {
     tries++;
     var hasBody = !!document.body;

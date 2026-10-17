@@ -97,6 +97,7 @@ if (-not $ScriptPath) { $ScriptPath = Join-Path (Split-Path $PSScriptRoot -Paren
 $resDir  = Join-Path $AppDir 'resources'
 $asar    = Join-Path $resDir 'app.asar'
 $bak     = Join-Path $resDir 'app.asar.bak'
+$unpackedDir = Join-Path $resDir 'app.asar.unpacked'
 $tmp     = $null
 $newAsar = $null
 $exitCode = 0
@@ -183,10 +184,24 @@ try {
     }
 
     # --- already patched? ---------------------------------------------------
-    $raw = [System.IO.File]::ReadAllBytes($asar)
+    # Only the header (first bytes) can contain the file names: reading the whole
+    # 300+ MB archive into memory was slow and could exhaust PowerShell 5.1.
+    $fs = [System.IO.File]::OpenRead($asar)
+    try {
+        $head = New-Object byte[] 16
+        [void]$fs.Read($head, 0, 16)
+        $headerSize = [BitConverter]::ToUInt32($head, 12)
+        $take = [int][math]::Min([int64]16777216, [int64]$headerSize + 16)
+        $fs.Position = 0
+        $buf = New-Object byte[] $take
+        [void]$fs.Read($buf, 0, $take)
+    }
+    finally {
+        $fs.Dispose()
+    }
     # Latin1 via GetEncoding(28591): [Text.Encoding]::Latin1 only exists in .NET 5+,
     # it is $null under Windows PowerShell 5.1 (the engine the .bat uses).
-    if ([System.Text.Encoding]::GetEncoding(28591).GetString($raw).Contains('voice-input.js')) {
+    if ([System.Text.Encoding]::GetEncoding(28591).GetString($buf).Contains('voice-input.js')) {
         if (-not $Force) {
             throw 'This app.asar already contains voice-input.js (already patched). Use -Rollback to revert, or -Force to re-apply.'
         }
@@ -237,9 +252,50 @@ try {
         Write-Log ('Injected  : tag already present in ' + $HtmlRel + ' (skipped)') 'Yellow'
     }
 
+    # --- preserve the original app.asar.unpacked layout ----------------------
+    # @electron/asar extract materialises the files that were marked "unpacked"
+    # inside the temp folder; a plain repack would then embed them in app.asar
+    # (+50 MB here) and could break native modules. We rebuild the same split:
+    # node_modules package roots go to --unpack-dir, other loose files to --unpack.
+    $unpackArgs = @()
+    $unpackedCount = 0
+    if (Test-Path $unpackedDir) {
+        $prefixLen = $unpackedDir.TrimEnd('\').Length + 1
+        $unpackedFiles = @(Get-ChildItem -Path $unpackedDir -Recurse -File -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.FullName.Substring($prefixLen) -replace '\\', '/' })
+        $unpackedCount = $unpackedFiles.Count
+        $pkgDirs = @()
+        $looseFiles = @()
+        foreach ($rel in $unpackedFiles) {
+            if ($rel -match '^node_modules/(@[^/]+/[^/]+|[^/]+)/') {
+                $pkg = 'node_modules/' + $Matches[1]
+                if ($pkgDirs -notcontains $pkg) { $pkgDirs += $pkg }
+            }
+            else {
+                if ($looseFiles -notcontains $rel) { $looseFiles += $rel }
+            }
+        }
+        if ($pkgDirs.Count -gt 0) {
+            $unpackArgs += '--unpack-dir'
+            $unpackArgs += ('{' + ($pkgDirs -join ',') + '}')
+        }
+        if ($looseFiles.Count -gt 0) {
+            # literal paths do not match under Windows in @electron/asar; **/rel/path does.
+            $globs = @()
+            foreach ($rel in $looseFiles) {
+                $glob = '**/' + $rel
+                if ($globs -notcontains $glob) { $globs += $glob }
+            }
+            $unpackArgs += '--unpack'
+            $unpackArgs += ('{' + ($globs -join ',') + '}')
+        }
+        Write-Log ('Unpacked  : ' + $unpackedCount + ' files to keep outside the archive') 'DarkGray'
+    }
+
     # --- repack -------------------------------------------------------------
     Write-Log 'Repacking...' 'Gray'
-    & npx --yes @electron/asar pack $tmp $newAsar *>&1 | ForEach-Object { Write-Log ('  ' + $_) 'DarkGray' }
+    $packArgs = @('--yes', '@electron/asar', 'pack', $tmp, $newAsar) + $unpackArgs
+    & npx @packArgs *>&1 | ForEach-Object { Write-Log ('  ' + $_) 'DarkGray' }
     if ($LASTEXITCODE -ne 0) { throw 'asar pack failed.' }
 
     $oldSize = (Get-Item $asar).Length
@@ -247,9 +303,39 @@ try {
     if ($newSize -lt ($oldSize * 0.9)) {
         throw ('Repacked archive looks too small (' + $newSize + ' bytes, was ' + $oldSize + '). Aborted, original untouched.')
     }
+    # The new archive must only grow by the injected script (plus a small
+    # header/alignment margin): a bigger jump means unpacked files were folded in.
+    $scriptSize = (Get-Item $ScriptPath).Length
+    $maxGrowth = [math]::Max(5MB, [int64]$scriptSize * 20)
+    if ($newSize -gt ($oldSize + $maxGrowth)) {
+        throw ('Repacked archive is unexpectedly large (' + $newSize + ' bytes, was ' + $oldSize + '). Unpacked files were probably folded in. Aborted, original untouched.')
+    }
+
+    # --- restore the unpacked split -----------------------------------------
+    $newUnpacked = $newAsar + '.unpacked'
+    if (Test-Path $newUnpacked) {
+        if (-not (Test-Path $unpackedDir)) {
+            New-Item -ItemType Directory -Path $unpackedDir -Force | Out-Null
+        }
+        Copy-Item (Join-Path $newUnpacked '*') $unpackedDir -Recurse -Force
+        $prefixNew = $newUnpacked.TrimEnd('\').Length + 1
+        $newUnpackedFiles = @(Get-ChildItem -Path $newUnpacked -Recurse -File |
+            ForEach-Object { $_.FullName.Substring($prefixNew) -replace '\\', '/' })
+        $newCount = $newUnpackedFiles.Count
+        Write-Log ('Unpacked  : ' + $newCount + ' files restored outside the archive') 'Green'
+        $missing = @($unpackedFiles | Where-Object { $newUnpackedFiles -notcontains $_ })
+        if ($missing.Count -gt 0) {
+            throw ('Repacked archive lost ' + $missing.Count + ' unpacked file(s), e.g. ' + $missing[0] + '. Aborted, original untouched.')
+        }
+    }
+    elseif ($unpackedCount -gt 0) {
+        throw ('The original archive has ' + $unpackedCount + ' unpacked files, but the repacked one has none. Aborted, original untouched.')
+    }
 
     Copy-Item $newAsar $asar -Force
-    Write-Log ('OK - patched. ' + $oldSize + ' -> ' + $newSize + ' bytes (+' + ([math]::Round(($newSize - $oldSize) / 1KB)) + ' KB)') 'Green'
+    $delta = $newSize - $oldSize
+    $deltaText = if ($delta -ge 0) { '+' + [math]::Round($delta / 1KB) } else { [string][math]::Round($delta / 1KB) }
+    Write-Log ('OK - patched. ' + $oldSize + ' -> ' + $newSize + ' bytes (' + $deltaText + ' KB)') 'Green'
     Write-Log ('Rollback: .\apply-patch.ps1 -Preset ' + $Preset + ' -Rollback') 'DarkGray'
 }
 catch {
@@ -264,6 +350,7 @@ catch {
 }
 finally {
     if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    if ($newAsar -and (Test-Path ($newAsar + '.unpacked'))) { Remove-Item ($newAsar + '.unpacked') -Recurse -Force -ErrorAction SilentlyContinue }
     if ($newAsar -and (Test-Path $newAsar)) { Remove-Item $newAsar -Force -ErrorAction SilentlyContinue }
 }
 
