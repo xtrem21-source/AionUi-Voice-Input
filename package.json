@@ -1,5 +1,5 @@
 {
-  "name": "electron-voice-input",
+  "name": "aitron-voice-input",
   "version": "2.0.0",
   "description": "Voice input button for any Electron chat app — records audio, transcribes with Gemini, inserts it into the composer.",
   "keywords": [
@@ -9,11 +9,13 @@
     "dictation",
     "gemini",
     "asar",
+    "cline",
     "accessibility"
   ],
   "license": "MIT",
   "author": "Xtrem-21",
   "files": [
+    "METHODOLOGY.md",
     "src/voice-input.js",
     "scripts/",
     "docs/",

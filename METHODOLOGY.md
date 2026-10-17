@@ -1,0 +1,279 @@
+# 🧭 METHODOLOGY — Add a microphone button to any Electron chat app
+
+> **How to use this file:** copy it (and `src/voice-input.js`) into **any AI agent** —
+> Claude, ChatGPT, Copilot, Cline, AionUi, a local model, whatever — and say:
+> *"Read METHODOLOGY.md and apply it to <AppName>."*
+>
+> The agent then has everything it needs: the goal, the reasoning, the commands, the
+> decision points, the verification steps and the failure modes.
+
+**This file is the product. The patch script is just one way to execute it.**
+
+---
+
+## 0. Your mission (agent reading this)
+
+Add a working **voice input button** to an Electron desktop chat application installed on
+this machine, without touching its source code repository — you patch the **installed**
+application.
+
+You will:
+
+1. locate the app's `app.asar` (or plain `app` folder),
+2. find the renderer's `index.html`,
+3. drop `voice-input.js` next to it,
+4. add one `<script>` tag,
+5. repack **only if necessary**,
+6. verify,
+7. report honestly what worked and what did not.
+
+---
+
+## 1. Why this approach works (do not skip — it changes your decisions)
+
+**The naive approach fails.** Chromium's `webkitSpeechRecognition` (Web Speech API) is
+exposed but **non-functional in Electron**, because the Google speech backend is not bundled
+in the runtime. You get `network` or `not-allowed`. Do **not** build on it.
+
+**The approach that works:**
+
+```
+MediaRecorder  →  short audio blob  →  Gemini generateContent (inline base64 audio)
+               →  text  →  native value setter + 'input' event  →  composer
+```
+
+Three properties make this portable:
+
+| Property | Why it matters |
+|---|---|
+| `MediaRecorder` + `fetch` work in every Electron app | no native module, no rebuild |
+| Text is inserted with the **native setter** + `input` event | React (and Vue) see a genuine change; `el.value = x` would be ignored |
+| The button is **re-anchored** by a `MutationObserver` | survives re-renders and route changes |
+
+**Consequence for you:** you almost never need to understand the app's code. You need to find
+**a `<textarea>`** and **a send button**, then let the script do the rest.
+
+---
+
+## 2. Prerequisites — check these before doing anything
+
+```powershell
+node -v                 # >= 18 (fetch, MediaRecorder host)
+npx --version
+Get-Process <AppName>   # must return NOTHING: the archive is locked while running
+```
+
+- [ ] Node.js ≥ 18 available
+- [ ] The target app is **closed**
+- [ ] You know the **install directory** of the app
+- [ ] ~1.5 GB free in `%TEMP%` (for extract + repack)
+
+> If the app is a **portable/unpacked** install (`resources\app\` instead of
+> `resources\app.asar`), you can skip all repacking — that is the easy path (§4.B).
+
+---
+
+## 3. Step 1 — Locate the renderer entry
+
+```powershell
+$asar = "$env:LOCALAPPDATA\Programs\<App>\resources\app.asar"
+npx --yes @electron/asar list $asar | Select-String "index.html"
+```
+
+Typical results:
+
+| Build tool | Path |
+|---|---|
+| electron-vite | `out/renderer/index.html` |
+| Vite / electron-builder | `dist/index.html` |
+| Webpack | `build/index.html` |
+
+Now extract just that file and inspect it:
+
+```powershell
+npx --yes @electron/asar extract-file $asar "out/renderer/index.html"
+```
+
+Check two things in it:
+
+1. **Is there a Content-Security-Policy meta tag?**
+   - none, or `script-src 'self'` → ✅ you can add a local script
+   - hash-based / `script-src 'sha256-...'` only → ⚠️ you must add the file's hash, or the
+     script will be blocked. Prefer the userscript route (§6) in that case.
+2. **Is there a `</body>`?** It is your injection point.
+
+---
+
+## 4. Step 2 — Install the file
+
+### A. Packed app (`app.asar`) — the common case
+
+```powershell
+Copy-Item $asar "$asar.bak"                                  # ALWAYS
+$tmp = "$env:TEMP\asar-work"
+npx --yes @electron/asar extract $asar $tmp
+
+Copy-Item ".\src\voice-input.js" "$tmp\out\renderer\voice-input.js"
+
+# inject just before </body> (keep it relative: ./voice-input.js)
+$html = Get-Content "$tmp\out\renderer\index.html" -Raw
+$html = [regex]::Replace($html, '</body>',
+  "  <script src=`"./voice-input.js`"></script>`r`n</body>", 'IgnoreCase')
+Set-Content "$tmp\out\renderer\index.html" $html -NoNewline -Encoding utf8
+
+npx --yes @electron/asar pack $tmp "$env:TEMP\app.asar.new"
+# sanity check BEFORE swapping
+(Get-Item "$env:TEMP\app.asar.new").Length
+(Get-Item $asar).Length          # new size must be >= 90% of old
+Copy-Item "$env:TEMP\app.asar.new" $asar
+```
+
+### B. Unpacked app (`resources\app\`) — the easy path
+
+If `resources\app\` exists as a folder, **do not repack anything**:
+
+```
+resources\app\<same relative path as index.html>\voice-input.js
++ one <script src="./voice-input.js"></script> before </body>
+```
+
+### C. macOS
+
+```bash
+ASAR="/Applications/<App>.app/Contents/Resources/app.asar"
+cp "$ASAR" "$ASAR.bak"
+# then the same extract / copy / patch / pack sequence
+```
+
+---
+
+## 5. Step 3 — Adapt the **three** places that actually vary
+
+Everything else is app-independent. These three are where ports fail:
+
+### ① The send button (anchoring)
+
+```js
+document.querySelector('button[type=submit]')
+```
+
+Most Electron chat UIs use an **icon button**, not a form submit. If the mic ends up
+**floating** instead of sitting next to the arrow, extend the selector:
+
+```js
+const SEND_SELECTOR =
+  'button[type=submit], button[class*="send"], button[aria-label*="envoy"], ' +
+  'button[aria-label*="send"], button[title*="envoy"], button[title*="Send"]';
+```
+
+> Locate it in the app's DevTools: right-click the arrow → *Inspect*.
+
+### ② The composer
+
+The script already tries, in order:
+
+1. visible `<textarea>` inside a `<form>` with a submit button
+2. visible `<textarea rows="1">` with a message-like placeholder
+3. the last visible `<textarea>` on the page
+
+If the app uses a `contenteditable` div instead, add it to the lookup **and** change the
+insertion to `textContent` + `beforeinput`/`input`.
+
+### ③ The model name
+
+`gemini-3.5-flash-lite` is the default. Google retires models regularly — the script already
+falls back to a list, but check the console for `404 model not found` and update the list if
+needed.
+
+---
+
+## 6. When patching is impossible (fallbacks, in order of preference)
+
+1. **Unpacked app** → just drop the file (§4.B). No repack, no risk.
+2. **Browser / PWA / WebUI** → the same script works as a **userscript** (Tampermonkey):
+   `@match` the app URL, no app modification at all.
+3. **DevTools** → paste the script in the console (works until reload; good for testing).
+4. **Electron `--remote-debugging-port`** + CDP injection (advanced).
+5. **Modify the source** and rebuild (only if the app is open source and you can build it).
+
+**Never** hand the user a broken archive: always keep the `.bak`.
+
+---
+
+## 7. Verification checklist (report each line)
+
+- [ ] The mic button **appears** — next to the send arrow, or floating
+- [ ] **Right-click** on it reveals the settings gear
+- [ ] A Gemini API key is accepted (`API key` field)
+- [ ] Speaking produces **text in the composer**
+- [ ] **Auto-send ON** → the message is sent when recording stops
+- [ ] **Auto-send OFF** → the text stays, the user presses send
+- [ ] The button **survives** an app restart and a conversation switch
+- [ ] No error in DevTools console (`Ctrl+Shift+I`)
+
+---
+
+## 8. Failure modes → fixes
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Nothing appears | Script blocked by CSP | Add the file hash or use the userscript route |
+| Nothing appears | `</body>` injection missed | Check the file was written with UTF-8, re-extract |
+| Button floating in a corner | Send button selector missed | §5.① |
+| Button disappears while typing | Re-render not observed | Ensure `MutationObserver` targets the app root, not `body` only |
+| Text inserted but React clears it | Setter bypassed | Use `HTMLTextAreaElement.prototype` setter + `input` event |
+| `network` / `not-allowed` on record | Mic permission denied by the app | The app must allow `media`; some apps need it enabled in settings |
+| `403` / `400` from Gemini | Bad/expired key, wrong model name | New key, valid model |
+| `404 model not found` | Model retired | Update the model list |
+| App won't start after patch | Bad repack | Restore `app.asar.bak` immediately |
+| Works until an app update | Update replaced `app.asar` | Re-apply the method |
+
+---
+
+## 9. Rollback (always tell the user this)
+
+```powershell
+Copy-Item "$asar.bak" $asar -Force
+```
+
+---
+
+## 10. Honesty clause — what you must tell the user
+
+Say it plainly:
+
+> *"This is a **working method**, not a certified product. It works on most Electron chat
+> apps — roughly **8 out of 10** — but it is not guaranteed. It is free (your own Gemini key),
+> it survives until the next app update, and a backup of the original archive is always kept."*
+
+**Why this matters:** the alternative built into some apps is a **paid voice subscription**
+(e.g. ElevenLabs-backed dictation in Cline Desktop) that is expensive and, for some users,
+simply did not work. This method needs **no subscription and no account** — only a free
+Gemini API key.
+
+---
+
+## 11. Do NOT
+
+- ❌ Do not rebuild the app from source if patching works.
+- ❌ Do not patch while the app is running.
+- ❌ Do not ship an archive without a size sanity check.
+- ❌ Do not commit or print the API key. Ever.
+- ❌ Do not claim "100% compatible". Say **~8/10**.
+- ❌ Do not modify anything else inside the archive.
+
+---
+
+## 12. Report template (paste this back to the user)
+
+```
+App          : <name + version>
+Install dir  : <path>
+Layout       : asar / unpacked
+HTML entry   : <relative path>
+CSP          : none / 'self' / hash-based
+Send anchor  : button[type=submit] / custom selector / floating
+Result       : ✅ works / ⚠️ partial / ❌ failed
+Details      : <what worked, what didn't, selector used>
+Rollback     : <path to .bak>
+```

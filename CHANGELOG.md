@@ -3,6 +3,23 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [2.1.0] — 2026-10-17
+
+### Added
+- **`METHODOLOGY.md`** — the agent-ready playbook. Hand it to *any* AI agent (Claude, Copilot,
+  Cline, AionUi, a local model) with the words *"apply this to &lt;AppName&gt;"* and it has the
+  full procedure: prerequisites, asar extraction, injection, the three app-specific adaptation
+  points, verification checklist, failure table, rollback and an honesty clause.
+- Fallback routes when repacking is impossible: **unpacked app folder**, **userscript (PWA /
+  WebUI)**, **DevTools**, CDP injection.
+- **Cline Desktop** listed as *reported working, unverified*.
+- Expected success rate documented honestly: **~8 apps out of 10**, not 100%.
+
+### Changed
+- Project renamed **AiTron Voice Input** (repo: `AiTron-Voice-Input`).
+- README now points to `METHODOLOGY.md` first: *the method is the product, the patch is one
+  way to execute it*.
+
 ## [2.0.0] — 2026-10-17
 
 First public release.

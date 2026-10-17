@@ -7,8 +7,26 @@ drop the script. All the DOM logic is identical.
 |---|---|---|---|---|---|
 | **Open Cowork** | `%LOCALAPPDATA%\Programs\Open Cowork` | `dist/index.html` | `dist/voice-input.js` | `button[type=submit]` (send arrow) | ✅ tested, works |
 | **AionUi** | `%LOCALAPPDATA%\Programs\AionUi` | `out/renderer/index.html` | `out/renderer/voice-input.js` | Arco/React: send button is likely `type="button"` → **floating fallback** | 🧪 patch ready, anchor to validate |
+| **Cline Desktop** | *to be mapped* (GUI build, asar) | *to be mapped* | *to be mapped* | *unknown* | 🟡 reported working by the author, unverified |
+
+> **Cline Desktop note.** Cline ships a **built-in voice option backed by a paid subscription**
+> (ElevenLabs). For the author it was expensive *and* did not work. This method needs **no
+> subscription** — just a free Gemini key. To map it: run
+> `npx @electron/asar list "<install>/resources/app.asar" | grep index.html`, then open an
+> issue/PR with the paths.
 
 ---
+
+## Expected success rate
+
+**About 8 apps out of 10.** Three things decide:
+
+1. the archive is reachable (asar or plain folder) → almost always
+2. the CSP allows a local script → often
+3. the composer is a `<textarea>` with an identifiable send button → the usual failure point
+
+When (3) fails, the mic still works as a **floating button** — the feature is there, only the
+placement is off. That is why the method ships with a fallback instead of a hard requirement.
 
 ## Open Cowork
 

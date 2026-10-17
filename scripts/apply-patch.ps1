@@ -86,7 +86,7 @@ $bak    = Join-Path $resDir 'app.asar.bak'
 
 if (-not (Test-Path $asar)) { throw "app.asar not found: $asar" }
 
-Write-Host "=== electron-voice-input :: $Preset ===" -ForegroundColor Cyan
+Write-Host "=== AiTron Voice Input :: $Preset ===" -ForegroundColor Cyan
 Write-Host "asar      : $asar"
 Write-Host "html      : $HtmlRel"
 Write-Host "script -> : $JsRel"

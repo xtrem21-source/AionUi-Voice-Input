@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# electron-voice-input — asar patcher for macOS / Linux
+# AiTron Voice Input — asar patcher for macOS / Linux
 #
 # Usage:
 #   ./apply-patch.sh "<path-to-app.asar>" "<html-inside-asar>" "<js-dest-inside-asar>"
@@ -28,7 +28,7 @@ if [[ ! -f "$ASAR" ]]; then echo "Not found: $ASAR" >&2; exit 1; fi
 if [[ ! -f "$SRC_JS" ]]; then echo "Missing source: $SRC_JS" >&2; exit 1; fi
 command -v npx >/dev/null 2>&1 || { echo "npx (Node.js) is required." >&2; exit 1; }
 
-echo "=== electron-voice-input ==="
+echo "=== AiTron Voice Input ==="
 echo "asar      : $ASAR"
 
 if grep -qa "voice-input.js" "$ASAR"; then

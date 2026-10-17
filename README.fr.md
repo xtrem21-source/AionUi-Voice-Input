@@ -1,9 +1,14 @@
-# 🎙️ electron-voice-input
+# 🎙️ AiTron Voice Input
 
 > **Un bouton de saisie vocale, en un seul fichier, pour n'importe quelle application de chat Electron.**
 > Il enregistre votre voix, la transcrit avec Gemini, insère le texte dans la zone de saisie — et peut l'envoyer à votre place.
 
 🇬🇧 English version: [README.md](README.md)
+
+> 🤖 **Envie de le porter sur une autre app ?** Ne lis pas le code — donne
+> [`METHODOLOGY.md`](METHODOLOGY.md) à ton agent IA (Claude, Copilot, Cline, AionUi, un modèle
+> local…) et dis-lui *« applique ceci à &lt;NomApp&gt; »*. **Ce fichier est le produit** ; le
+> script n'est qu'une façon de l'exécuter.
 
 ---
 
@@ -83,8 +88,13 @@ ouverte ou déjà patchée.
 
 | Application | Chemin du script | État |
 |---|---|---|
-| **Open Cowork** | `dist/voice-input.js` | ✅ testé |
+| **Open Cowork** | `dist/voice-input.js` | ✅ testé, fonctionne |
 | **AionUi** | `out/renderer/voice-input.js` | 🧪 correctif prêt, ancrage à valider |
+| **Cline Desktop** | à cartographier | 🟡 signalé fonctionnel par l'auteur, non vérifié |
+
+> **~8 sur 10 — pas 100 %.** Les applications Electron diffèrent par leur zone de saisie et
+> leur bouton d'envoi. La *méthode* s'adapte ; le script peut demander **un ajustement de
+> sélecteur** (§5 de [`METHODOLOGY.md`](METHODOLOGY.md)). C'est l'attente honnête.
 
 Ajouter une application = généralement **une ligne** dans le script + un ajustement de sélecteur.
 Voir [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).

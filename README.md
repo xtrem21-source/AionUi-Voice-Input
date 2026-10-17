@@ -1,4 +1,4 @@
-# 🎙️ electron-voice-input
+# 🎙️ AiTron Voice Input
 
 > **A single-file voice input button for any Electron chat app.**
 > Records your voice, transcribes it with Gemini, inserts the text into the composer — and optionally sends it for you.
@@ -6,6 +6,11 @@
 [![Status](https://img.shields.io/badge/status-working-brightgreen)]()
 [![Dependencies](https://img.shields.io/badge/dependencies-0-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+
+> 🤖 **Want to port it to another app?** Don't read the code — hand
+> [`METHODOLOGY.md`](METHODOLOGY.md) to your AI agent (Claude, Copilot, Cline, AionUi, a local
+> model…) and say *"apply this to &lt;AppName&gt;"*. That file **is** the product; the patch
+> script is only one way to execute it.
 
 ---
 
@@ -83,8 +88,13 @@ already patched.
 
 | App | Layout | Script path | Status |
 |---|---|---|---|
-| **Open Cowork** | electron-vite | `dist/voice-input.js` | ✅ tested |
-| **AionUi** | electron-vite | `out/renderer/voice-input.js` | 🧪 patch ready, anchor TBD |
+| **Open Cowork** | Vite | `dist/voice-input.js` | ✅ tested, works |
+| **AionUi** | electron-vite | `out/renderer/voice-input.js` | 🧪 patch ready, anchor to validate |
+| **Cline Desktop** | asar | to be mapped | 🟡 reported working by the author, unverified |
+
+> **~8 out of 10 — not 100%.** Electron chat apps differ in their composer and their send
+> button. The *method* adapts; the script may need **one selector tweak** (§5 of
+> [`METHODOLOGY.md`](METHODOLOGY.md)). That is the honest expectation.
 
 Adding an app is usually **one row** in `scripts/apply-patch.ps1` + a selector tweak.
 See [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
@@ -117,10 +127,11 @@ See [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
 ## 🗂️ Repository layout
 
 ```
-src/voice-input.js      the injectable script (the whole product)
+METHODOLOGY.md          ⭐ the product: the agent-ready playbook
+src/voice-input.js      the injectable script (~45 KB, zero dependencies)
 scripts/apply-patch.*   safe asar patchers (Windows / macOS-Linux)
 docs/HOW-IT-WORKS.md    architecture, DOM anchoring, React compatibility
-docs/SUPPORTED-APPS.md  per-app paths and selectors
+docs/SUPPORTED-APPS.md  per-app paths, selectors, expected success rate
 ```
 
 ---
