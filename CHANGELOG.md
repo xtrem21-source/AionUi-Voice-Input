@@ -3,6 +3,19 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [2.1.7] — 2026-10-18
+
+### Changed
+- **Scope now names all four targets:** AionUi, Open Cowork, Cline Desktop and Reasonix Studio
+  (README, README.fr, `docs/SUPPORTED-APPS.md`, package description and GitHub repository
+  description).
+- Added a **Reasonix Studio** row and section to the supported-apps documentation. Studio
+  patches the unpacked `resources/frontend-next/dist/` renderer, not `app.asar`; the dedicated
+  [Reasonix-Voice-Input](https://github.com/xtrem21-source/Reasonix-Voice-Input) installer
+  remains the supported path.
+- Repository layout now lists both injectable sources
+  (`src/voice-input.open-cowork.js` and `src/voice-input.aionui.js`).
+
 ## [2.1.6] — 2026-10-18
 
 ### Fixed

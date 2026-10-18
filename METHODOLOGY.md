@@ -1,7 +1,7 @@
 # 🧭 METHODOLOGY — Add a microphone button to any Electron chat app
 
 > **How to use this file:** copy it (and `src/voice-input.open-cowork.js`) into **any AI agent** —
-> Claude, ChatGPT, Copilot, Cline, AionUi, a local model, whatever — and say:
+> Claude, ChatGPT, Copilot, Cline, AionUi, Reasonix, a local model, whatever — and say:
 > *"Read METHODOLOGY.md and apply it to <AppName>."*
 >
 > The agent then has everything it needs: the goal, the reasoning, the commands, the
@@ -11,6 +11,8 @@
 
 > **Porting a second app?** Open Cowork worked with the generic script; AionUi needed specific
 > adaptations (send-button wrapper, narrow action bar, `app.asar.unpacked`, key source).
+> **Reasonix Studio** is the third case: its renderer is unpacked (`frontend-next/dist/`), so
+> the asar patcher does not apply — use the dedicated installer.
 > Read [`docs/PORTING-NOTES.md`](docs/PORTING-NOTES.md) before you start: it lists what is
 > generic, what changes per app, and the checklist to avoid overfitting the patch.
 

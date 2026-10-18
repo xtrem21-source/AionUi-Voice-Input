@@ -1,13 +1,15 @@
 # 🧩 Supported applications
 
 A "preset" is just three values: the app folder, the HTML entry inside `app.asar`, and where to
-drop the script. All the DOM logic is identical.
+drop the script. All the DOM logic is identical. The one exception is **Reasonix Studio**:
+its renderer is unpacked, not an asar (see below).
 
 | App | Install dir | HTML inside asar | Script inside asar | Anchor | Status |
 |---|---|---|---|---|---|
 | **Open Cowork** | `%LOCALAPPDATA%\Programs\Open Cowork` | `dist/index.html` | `dist/voice-input.js` | `button[type=submit]` (send arrow) | ✅ tested, works |
 | **AionUi** | `%LOCALAPPDATA%\Programs\AionUi` | `out/renderer/index.html` | `out/renderer/voice-input.js` | Arco/React: primary circular `send-button-custom` button, no `<form>` — picked by the scoring heuristic | ✅ tested on Windows (AionUi 2.2.2) |
 | **Cline Desktop** | *to be mapped* (GUI build, asar) | *to be mapped* | *to be mapped* | *unknown* | 🟡 reported working by the author, unverified |
+| **Reasonix Studio** | `%LOCALAPPDATA%\Programs\Reasonix Studio` | *(unpacked)* `resources/frontend-next/dist/index.html` | *(unpacked)* `resources/frontend-next/dist/voice-input.js` | React composer, same scoring heuristic | ✅ tested — dedicated installer, not asar |
 
 > **Cline Desktop note.** Cline ships a **built-in voice option backed by a paid subscription**
 > (ElevenLabs). For the author it was expensive *and* did not work. This method needs **no
@@ -53,6 +55,20 @@ placement is off. That is why the method ships with a fallback instead of a hard
 > ⚠️ AionUi ships a large `resources/app.asar.unpacked` (~61 MB of native modules and
 > helper scripts). Any repack must preserve it: `apply-patch.ps1` rebuilds the same split
 > with `--unpack-dir` / `--unpack` and aborts if the archive unexpectedly grows.
+
+---
+
+## Reasonix Studio
+
+- Layout: **unpacked** `resources/frontend-next/dist/` — the renderer is not inside
+  `app.asar` in current Studio builds.
+- Patch target: `...\resources\frontend-next\dist\index.html`, with `voice-input.js`
+  copied next to it.
+- Because it is not an asar, `scripts/apply-patch.ps1` (the asar patcher) does **not**
+  apply. Use the dedicated installer:
+  [Reasonix-Voice-Input](https://github.com/xtrem21-source/Reasonix-Voice-Input)
+  (`INSTALLER-MIC-REASONIX.bat`), which backs up `index.html` before injecting.
+- Status: tested by the author with the dedicated package (v0.1.3).
 
 ---
 

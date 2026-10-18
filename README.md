@@ -110,6 +110,7 @@ already patched — use `-Force` to reinstall over an existing patch.
 | **Open Cowork** | Vite | `dist/voice-input.js` | ✅ tested, works |
 | **AionUi** | electron-vite | `out/renderer/voice-input.js` | ✅ tested on Windows (AionUi 2.2.2) |
 | **Cline Desktop** | asar | to be mapped | 🟡 reported working by the author, unverified |
+| **Reasonix Studio** | unpacked `frontend-next` | `frontend-next/dist/voice-input.js` | ✅ tested — separate installer ([Reasonix-Voice-Input](https://github.com/xtrem21-source/Reasonix-Voice-Input)) |
 
 > **~8 out of 10 — not 100%.** Electron chat apps differ in their composer and their send
 > button. The *method* adapts; the script may need **one selector tweak** (§5 of
@@ -121,6 +122,10 @@ already patched — use `-Force` to reinstall over an existing patch.
 
 Adding an app is usually **one row** in `scripts/apply-patch.ps1` + a selector tweak.
 See [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
+
+> **Reasonix Studio is the exception:** its renderer lives in an unpacked
+> `resources/frontend-next/dist/` folder, not in `app.asar`, so it keeps a dedicated
+> installer ([Reasonix-Voice-Input](https://github.com/xtrem21-source/Reasonix-Voice-Input)).
 
 ---
 
@@ -151,7 +156,8 @@ See [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
 
 ```
 METHODOLOGY.md          ⭐ the product: the agent-ready playbook
-src/voice-input.open-cowork.js      the injectable script (~45 KB, zero dependencies)
+src/voice-input.open-cowork.js      injectable script for Open Cowork (~45 KB, zero dependencies)
+src/voice-input.aionui.js           injectable script for AionUi (Arco/React adaptations)
 scripts/apply-patch.*   safe asar patchers (Windows / macOS-Linux)
 docs/HOW-IT-WORKS.md    architecture, DOM anchoring, React compatibility
 docs/SUPPORTED-APPS.md  per-app paths, selectors, expected success rate
@@ -173,7 +179,7 @@ composer. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 MIT — see [LICENSE](LICENSE).
 
-*Not affiliated with Google, Open Cowork or AionUi. "Gemini" is a trademark of Google LLC.*
+*Not affiliated with Google, Open Cowork, AionUi, Cline or Reasonix. "Gemini" is a trademark of Google LLC.*
 
 ---
 

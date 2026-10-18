@@ -10,6 +10,11 @@ Thanks for helping! The most valuable contribution is **a new app preset**.
    npx @electron/asar list "<app>/resources/app.asar" | grep index.html
    ```
 
+   > **Reasonix Studio exception:** its renderer is an unpacked
+   > `resources/frontend-next/dist/` folder, not an asar. Use the dedicated
+   > [Reasonix-Voice-Input](https://github.com/xtrem21-source/Reasonix-Voice-Input)
+   > installer instead of adding a preset here.
+
 2. **Check the CSP** in that `index.html`. It must allow a local script
    (`script-src 'self'`) and outbound HTTPS (`connect-src https:`).
 

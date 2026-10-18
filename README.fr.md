@@ -105,6 +105,7 @@ ouverte ou déjà patchée.
 | **Open Cowork** | `dist/voice-input.js` | ✅ testé, fonctionne |
 | **AionUi** | `out/renderer/voice-input.js` | ✅ testé sous Windows (AionUi 2.2.2) |
 | **Cline Desktop** | à cartographier | 🟡 signalé fonctionnel par l'auteur, non vérifié |
+| **Reasonix Studio** | `frontend-next/dist/voice-input.js` | ✅ testé — installateur séparé ([Reasonix-Voice-Input](https://github.com/xtrem21-source/Reasonix-Voice-Input)) |
 
 > **~8 sur 10 — pas 100 %.** Les applications Electron diffèrent par leur zone de saisie et
 > leur bouton d'envoi. La *méthode* s'adapte ; le script peut demander **un ajustement de
@@ -117,6 +118,10 @@ ouverte ou déjà patchée.
 
 Ajouter une application = généralement **une ligne** dans le script + un ajustement de sélecteur.
 Voir [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
+
+> **Reasonix Studio est l'exception :** son interface vit dans un dossier non empaqueté
+> `resources/frontend-next/dist/`, pas dans `app.asar` ; il garde donc un installateur dédié
+> ([Reasonix-Voice-Input](https://github.com/xtrem21-source/Reasonix-Voice-Input)).
 
 ---
 
@@ -149,7 +154,7 @@ Voir [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
 
 MIT — voir [LICENSE](LICENSE).
 
-*Projet non affilié à Google, Open Cowork ou AionUi. « Gemini » est une marque de Google LLC.*
+*Projet non affilié à Google, Open Cowork, AionUi, Cline ou Reasonix. « Gemini » est une marque de Google LLC.*
 
 ---
 
