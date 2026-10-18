@@ -2,10 +2,18 @@
 
 > **A single-file voice input button for any Electron chat app.**
 > Records your voice, transcribes it with Gemini, inserts the text into the composer — and optionally sends it for you.
+>
+> **GitHub repository:** [xtrem21-source/AionUi-Voice-Input](https://github.com/xtrem21-source/AionUi-Voice-Input) — formerly AiTron Voice Input.
 
 [![Status](https://img.shields.io/badge/status-working-brightgreen)]()
 [![Dependencies](https://img.shields.io/badge/dependencies-0-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/xtrem21-source/AionUi-Voice-Input?display_name=tag&sort=semver)](https://github.com/xtrem21-source/AionUi-Voice-Input/releases)
+
+> **Same method, other apps:** [Reasonix Studio](https://github.com/esengine/DeepSeek-Reasonix) ·
+> [Cline Desktop](https://github.com/cline/cline) ·
+> [Open Cowork](https://github.com/open-cowork/open-cowork) ·
+> [AionUi](https://github.com/iOfficeAI/AionUi).
 
 > 🤖 **Want to port it to another app?** Don't read the code — hand
 > [`METHODOLOGY.md`](METHODOLOGY.md) to your AI agent (Claude, Copilot, Cline, AionUi, a local
