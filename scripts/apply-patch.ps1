@@ -92,7 +92,7 @@ if ($Preset -ne 'Custom') {
     if (-not $ProcessName) { $ProcessName = $p.Process }
 }
 
-if (-not $ScriptPath) { $ScriptPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'src\voice-input.js' }
+if (-not $ScriptPath) { $ScriptPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'src\voice-input.open-cowork.js' }
 
 $resDir  = Join-Path $AppDir 'resources'
 $asar    = Join-Path $resDir 'app.asar'

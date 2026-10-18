@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# ============================================================================
+# WARNING - NOT VALIDATED ON macOS / LINUX
+# The app.asar.unpacked preservation is NOT implemented/tested in this script.
+# It can break an application installation. Do NOT use in production.
+# Use the PowerShell patcher on Windows, or fix and test this script first.
+# ============================================================================
 # AiTron Voice Input — asar patcher for macOS / Linux
 #
 # Usage:
@@ -11,13 +17,14 @@
 # A backup (app.asar.bak) is always created. Requires Node.js + npx.
 
 set -euo pipefail
+echo "WARNING: apply-patch.sh is NOT validated on macOS/Linux; app.asar.unpacked is not preserved. Do not use in production." >&2
 
 ASAR="${1:-}"
 HTML_REL="${2:-}"
 JS_REL="${3:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC_JS="$SCRIPT_DIR/../src/voice-input.js"
+SRC_JS="$SCRIPT_DIR/../src/voice-input.open-cowork.js"
 
 if [[ -z "$ASAR" || -z "$HTML_REL" || -z "$JS_REL" ]]; then
   echo "Usage: $0 <app.asar> <html-inside-asar> <js-dest-inside-asar>" >&2

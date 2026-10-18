@@ -34,7 +34,7 @@ echo    TERMINE - correctif applique.
 echo.
 echo    Relance AionUi, puis :
 echo      - le micro apparait a cote / au-dessus de la fleche
-echo      - CLIC DROIT dessus  ^>  roue dentee  ^>  colle ta cle Gemini
+echo      - CLIC DROIT dessus  ^>  colle ta cle Gemini  (le panneau s'ouvre directement)
 echo.
 echo    Journal : dossier "logs" (fichier patch-AionUi-*.log)
 echo  ============================================================

@@ -151,7 +151,7 @@ See [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
 
 ```
 METHODOLOGY.md          ⭐ the product: the agent-ready playbook
-src/voice-input.js      the injectable script (~45 KB, zero dependencies)
+src/voice-input.open-cowork.js      the injectable script (~45 KB, zero dependencies)
 scripts/apply-patch.*   safe asar patchers (Windows / macOS-Linux)
 docs/HOW-IT-WORKS.md    architecture, DOM anchoring, React compatibility
 docs/SUPPORTED-APPS.md  per-app paths, selectors, expected success rate
@@ -181,3 +181,14 @@ MIT — see [LICENSE](LICENSE).
 
 The same method is now packaged for Reasonix Studio, Cline Desktop and Open Cowork:
 [Reasonix Voice Input v0.1.3](https://github.com/xtrem21-source/Reasonix-Voice-Input/releases/tag/v0.1.3).
+
+---
+
+## Non-regression
+
+The 60-second test checks **one mic**, a **stable position** and **zero re-anchor**. It is
+read-only; see [`tests/README.md`](tests/README.md).
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\non-regression.ps1 -Port 9222
+```

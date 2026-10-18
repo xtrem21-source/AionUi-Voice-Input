@@ -32,7 +32,7 @@ Thanks for helping! The most valuable contribution is **a new app preset**.
    ```
 
 5. If the send button is not `button[type=submit]`, extend the selector in
-   `src/voice-input.js` (search for `type=submit`) — **change nothing else**.
+   `src/voice-input.open-cowork.js` (search for `type=submit`) — **change nothing else**.
 
 6. Open a PR with: app name, **version tested**, archive layout, and the selectors used.
 
@@ -47,5 +47,5 @@ Please include:
 
 ## Code style
 
-`src/voice-input.js` is intentionally a **single classic script** with **zero dependencies**.
+`src/voice-input.open-cowork.js` is intentionally a **single classic script** with **zero dependencies**.
 Please keep it that way — no bundlers, no imports, no build step.

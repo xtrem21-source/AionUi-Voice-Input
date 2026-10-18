@@ -157,3 +157,14 @@ MIT — voir [LICENSE](LICENSE).
 
 La même méthode est désormais packagée pour Reasonix Studio, Cline Desktop et Open Cowork :
 [Reasonix Voice Input v0.1.3](https://github.com/xtrem21-source/Reasonix-Voice-Input/releases/tag/v0.1.3).
+
+---
+
+## Non-régression
+
+Le test de 60 secondes vérifie **un seul micro**, une **position stable** et **zéro
+ré-ancrage**. Il est en lecture seule ; voir [`tests/README.md`](tests/README.md).
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\non-regression.ps1 -Port 9222
+```

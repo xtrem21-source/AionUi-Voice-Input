@@ -3,6 +3,21 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [2.1.6] — 2026-10-18
+
+### Fixed
+- `INSTALLER-MIC-AIONUI.bat`: the post-install text now says **right-click the mic opens
+  the settings panel directly** (the gear was removed in 2.1.4).
+
+### Changed
+- Open Cowork module renamed `src/voice-input.open-cowork.js`; all source references updated.
+- `scripts/apply-patch.sh` now carries a **non-validated warning**: `app.asar.unpacked` is
+  not preserved/tested on macOS/Linux; do not use in production.
+
+### Added
+- `tests/non-regression.js` / `tests/non-regression.ps1`: one mic, stable position and zero
+  re-anchor over a 60-second window.
+
 ## [2.1.5] — 2026-10-17
 
 ### Fixed

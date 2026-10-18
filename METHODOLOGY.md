@@ -1,6 +1,6 @@
 # 🧭 METHODOLOGY — Add a microphone button to any Electron chat app
 
-> **How to use this file:** copy it (and `src/voice-input.js`) into **any AI agent** —
+> **How to use this file:** copy it (and `src/voice-input.open-cowork.js`) into **any AI agent** —
 > Claude, ChatGPT, Copilot, Cline, AionUi, a local model, whatever — and say:
 > *"Read METHODOLOGY.md and apply it to <AppName>."*
 >
@@ -181,7 +181,7 @@ Copy-Item $asar "$asar.bak"                                  # ALWAYS
 $tmp = "$env:TEMP\asar-work"
 npx --yes @electron/asar extract $asar $tmp
 
-Copy-Item ".\src\voice-input.js" "$tmp\out\renderer\voice-input.js"
+Copy-Item ".\src\voice-input.open-cowork.js" "$tmp\out\renderer\voice-input.js"
 
 # inject just before </body> (keep it relative: ./voice-input.js)
 $html = Get-Content "$tmp\out\renderer\index.html" -Raw
