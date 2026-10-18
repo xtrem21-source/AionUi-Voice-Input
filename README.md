@@ -166,3 +166,10 @@ composer. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 MIT — see [LICENSE](LICENSE).
 
 *Not affiliated with Google, Open Cowork or AionUi. "Gemini" is a trademark of Google LLC.*
+
+---
+
+## Reasonix Voice Input
+
+The same method is now packaged for Reasonix Studio, Cline Desktop and Open Cowork:
+[Reasonix Voice Input v0.1.3](https://github.com/xtrem21-source/Reasonix-Voice-Input/releases/tag/v0.1.3).

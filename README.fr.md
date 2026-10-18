@@ -141,3 +141,10 @@ Voir [`docs/SUPPORTED-APPS.md`](docs/SUPPORTED-APPS.md).
 MIT — voir [LICENSE](LICENSE).
 
 *Projet non affilié à Google, Open Cowork ou AionUi. « Gemini » est une marque de Google LLC.*
+
+---
+
+## Reasonix Voice Input
+
+La même méthode est désormais packagée pour Reasonix Studio, Cline Desktop et Open Cowork :
+[Reasonix Voice Input v0.1.3](https://github.com/xtrem21-source/Reasonix-Voice-Input/releases/tag/v0.1.3).
