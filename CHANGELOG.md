@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/), versioning follows [SemVer](https://semver.org/).
 
+## [2.1.8] — 2026-10-19
+
+### Fixed
+- **Mic anchored to the wrong composer.** With more than one textarea/composer in the DOM,
+  the module took the last visible textarea and could anchor the mic to another chat. The
+  lookup is now scoped to the active/visible composer, follows focus changes, uses a dedicated
+  stop button for anchoring during generation, and keeps the mic visible while the send button
+  is being replaced. Validated on a two-composer DOM fixture; the AionUi 2.2.2 selectors are
+  unchanged.
+
 ## [2.1.7] — 2026-10-18
 
 ### Changed

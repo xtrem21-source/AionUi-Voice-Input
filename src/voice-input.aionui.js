@@ -380,6 +380,16 @@
     });
     // Si la barre de saisie bouge (scroll interne du chat), le panneau doit suivre.
     window.addEventListener('scroll', function () { positionOverlay(root); }, true);
+    // Changer de zone de saisie au clavier/souris doit deplacer le micro avec le focus.
+    document.addEventListener('focusin', function (e) {
+      var t = e.target;
+      var area = t && (t.tagName === 'TEXTAREA' ? t : (t.closest && t.closest('textarea')));
+      if (area && isVisible(area)) {
+        st.composer = area;
+        st.forceComposer = area;
+        mountAnchored();
+      }
+    }, true);
     return st.ui;
   }
 
@@ -484,25 +494,67 @@
   // 2) cas AionUi / React sans <form> : on note les boutons de la barre de saisie
   //    (recherche en remontant depuis le textarea, profondeur max 5) et on prend
   //    le meilleur candidat, en excluant toujours notre propre micro.
-  function findSubmitButton() {
-    var area = findInput();
+  // Le composeur actif : celui qui a le focus, sinon un textarea visible.
+  // AionUi peut garder plusieurs zones de saisie dans le DOM ; sans ce filtre,
+  // la recherche prenait le dernier textarea de la page.
+  function activeComposer() {
+    if (st.forceComposer && isVisible(st.forceComposer)) {
+      var forced = st.forceComposer;
+      st.forceComposer = null;
+      return forced;
+    }
+    var active = document.activeElement;
+    if (active) {
+      if (active.tagName === 'TEXTAREA' && isVisible(active)) return active;
+      if (active.closest) {
+        var inside = active.closest('textarea');
+        if (inside && isVisible(inside)) return inside;
+      }
+    }
+    var areas = [].slice.call(document.querySelectorAll('textarea')).filter(isVisible);
+    if (areas.length === 1) return areas[0];
+    if (areas.length > 1) {
+      if (st.composer && areas.indexOf(st.composer) !== -1) return st.composer;
+      return areas[areas.length - 1];
+    }
+    return null;
+  }
+
+  // Conteneur du composeur : le plus proche ancetre qui porte le bouton
+  // d'envoi, le bouton brouillon ou le bouton stop.
+  function composerRoot(area) {
+    if (!area) return null;
+    var node = area.parentElement;
+    for (var i = 0; i < 10 && node; i++, node = node.parentElement) {
+      if (node.querySelector && node.querySelector('button.send-button-custom, button[type="submit"], button.sendbox-draft-tool-action, button.sendbox-stop-button')) {
+        return node;
+      }
+    }
+    return (area.closest && area.closest('form')) || area.parentElement || null;
+  }
+
+  function findSubmitButton(root) {
+    var area = root ? (root.querySelector('textarea') || activeComposer()) : (activeComposer() || findInput());
     if (!area) return null;
     var form = area.closest && area.closest('form');
     if (form) {
       var b = form.querySelector('button[type="submit"]');
       if (b && !isOwnNode(b)) return b;
     }
-    var scope = area.parentElement;
-    for (var d = 0; d < 5 && scope; d++, scope = scope.parentElement) {
-      var btns = scope.querySelectorAll('button');
+    var toolScope = area.parentElement;
+    for (var d = 0; d < 5 && toolScope; d++, toolScope = toolScope.parentElement) {
+      var btns = toolScope.querySelectorAll('button');
       var best = null;
       var bestScore = -1;
       for (var i = btns.length - 1; i >= 0; i--) {
         var btn = btns[i];
         if (isOwnNode(btn)) continue;
+        if (root && !root.contains(btn)) continue;
         if (isLeftToolNode(btn)) continue;
         // le selecteur de modele n'est pas la fleche d'envoi
         if (/sendbox-model-btn/i.test(String(btn.className || ''))) continue;
+        // le bouton stop n'est jamais la fleche d'envoi
+        if (/sendbox-stop|stop-button/i.test(String(btn.className || ''))) continue;
         var r = btn.getBoundingClientRect();
         if (r.width <= 8 || r.height <= 8) continue;
         // ne pas exclure les boutons desactives : la fleche d'envoi l'est
@@ -513,6 +565,16 @@
       if (best) return best;
     }
     return null;
+  }
+
+  // Bouton stop affiche pendant une generation : sert uniquement a ancrer
+  // le micro, jamais a envoyer.
+  function findStopButton(root) {
+    var scope = root || composerRoot(activeComposer()) || document;
+    var s = scope.querySelector('button.sendbox-stop-button, button[class*="sendbox-stop"], button[class*="stop-button"], button[aria-label*="stop" i], button[title*="stop" i]');
+    if (!s || isOwnNode(s)) return null;
+    var r = s.getBoundingClientRect();
+    return (r.width > 8 && r.height > 8) ? s : null;
   }
 
   // Micro flottant AU-DESSUS de la fleche quand la barre d'actions est trop
@@ -554,9 +616,13 @@
     var dup = document.getElementById('ocVoiceAnchor');
     if (dup && dup !== anchor) dup.remove();
 
-    var submit = findSubmitButton();
+    var area = activeComposer();
+    var root = composerRoot(area);
+    if (area) st.composer = area;
+    var submit = findSubmitButton(root);
     // defense en profondeur : ne jamais s'ancrer sur soi-meme
     if (submit && (submit === st.ui.btn || anchor.contains(submit))) submit = null;
+    if (!submit) submit = findStopButton(root);
     var target = submit ? anchorTarget(submit) : null;
     if (target && target.group) {
       var group = target.group;
@@ -612,6 +678,27 @@
         if (!st.anchorLogged) logWarn('ancrage REUSSI (juste a droite de la fleche d\'envoi)');
       }
       st.anchorLogged = true;
+      positionOverlay(st.ui.root);
+      return;
+    }
+    // Transition envoi -> stop, rendu React pas encore pose : si un composeur
+    // visible existe, on GARDE le micro au lieu de le cacher. Il ne disparait
+    // que s'il n'y a vraiment aucun composeur a l'ecran.
+    if (area) {
+      var ar = area.getBoundingClientRect();
+      try { document.body.appendChild(anchor); } catch (e) {}
+      anchor.style.position = 'fixed';
+      anchor.style.left = 'auto';
+      anchor.style.top = 'auto';
+      anchor.style.right = Math.max(8, window.innerWidth - ar.right + 8) + 'px';
+      anchor.style.bottom = Math.max(8, window.innerHeight - ar.bottom + 2) + 'px';
+      anchor.style.width = '32px';
+      anchor.style.height = '32px';
+      anchor.style.margin = '0';
+      anchor.style.zIndex = '2147483000';
+      hideAnchor(false);
+      st.anchored = true;
+      st.micFixed = true;
       positionOverlay(st.ui.root);
       return;
     }
@@ -1173,6 +1260,9 @@
   }
 
   function findInput() {
+    // Priorite au composeur actif : plusieurs zones de saisie peuvent coexister.
+    var active = activeComposer();
+    if (active) return active;
     var all = [].slice.call(document.querySelectorAll('textarea'));
     var areas = all.filter(isVisible);
     if (!areas.length) areas = all;
@@ -1209,7 +1299,7 @@
   }
 
   function insertText(text) {
-    var el = findInput();
+    var el = activeComposer() || findInput();
     if (!el) return false;
     var prev = el.value || '';
     var next = prev.trim() ? prev.replace(/\s+$/, '') + ' ' + text : text;
@@ -1295,7 +1385,7 @@
   // Si l'agent travaille (bouton desactive), met le message en file d'attente
   // via le bouton brouillon. Retourne 'sent', 'queued' ou false.
   function submitChat() {
-    var btn = findSubmitButton();
+    var btn = findSubmitButton(composerRoot(activeComposer()));
     if (btn && !btn.disabled) {
       try {
         btn.click();

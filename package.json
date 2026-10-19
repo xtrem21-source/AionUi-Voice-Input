@@ -1,6 +1,6 @@
 {
   "name": "aionui-voice-input",
-  "version": "2.1.7",
+  "version": "2.1.8",
   "description": "Voice input button for AionUi, Open Cowork, Cline Desktop and Reasonix Studio: records audio, transcribes with Gemini, inserts it into the composer.",
   "keywords": [
     "electron",
